@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data/Large files
+0 PonZ MCQ.txt
+ai_error_report.txt
+
+# Environment
+.env

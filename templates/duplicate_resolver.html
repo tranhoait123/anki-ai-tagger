@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Resolver — Anki AI Tagger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * { font-family: 'Inter', sans-serif; }
+
+        body {
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        /* ── Card panels ────────────────────────────────────── */
+        .card-panel {
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            background: #ffffff;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card-panel.winner {
+            border-color: #22c55e;
+            box-shadow: 0 0 0 4px rgba(34,197,94,0.12);
+        }
+        .card-panel.loser {
+            border-color: #f1f5f9;
+            opacity: 0.55;
+        }
+        .card-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        /* ── Badge ──────────────────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .badge-blue   { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .badge-green  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .badge-amber  { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .badge-red    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .badge-slate  { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+
+        /* ── Stats row ──────────────────────────────────────── */
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            min-width: 72px;
+        }
+        .stat-value  { font-size: 22px; font-weight: 700; line-height: 1; color: #0f172a; }
+        .stat-label  { font-size: 10px; color: #94a3b8; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+        /* ── Field content ──────────────────────────────────── */
+        .field-content {
+            font-size: 14px;
+            line-height: 1.65;
+            color: #334155;
+            max-height: 220px;
+            overflow-y: auto;
+            word-break: break-word;
+        }
+        .field-content img { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+
+        /* ── Keyboard shortcut chip ─────────────────────────── */
+        kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            padding: 0 6px;
+            background: #1e293b;
+            color: #f8fafc;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: monospace;
+            box-shadow: 0 2px 0 #0f172a;
+        }
+        kbd.pressed {
+            transform: translateY(1px);
+            box-shadow: 0 1px 0 #0f172a;
+        }
+
+        /* ── Progress ───────────────────────────────────────── */
+        .progress-track {
+            background: #e2e8f0;
+            border-radius: 999px;
+            height: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+            border-radius: 999px;
+            transition: width 0.4s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── Actions ────────────────────────────────────────── */
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .action-btn:active { transform: scale(0.96); }
+        .btn-keep-1  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .btn-keep-1:hover  { background: #dbeafe; }
+        .btn-keep-2  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+        .btn-keep-2:hover  { background: #dcfce7; }
+        .btn-auto    { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
+        .btn-auto:hover    { background: #f3e8ff; }
+        .btn-skip    { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+        .btn-skip:hover    { background: #f1f5f9; }
+        .btn-delete-all { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        .btn-delete-all:hover { background: #fee2e2; }
+
+        /* ── Tag pills ──────────────────────────────────────── */
+        .tag-pill {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        /* ── AI banner ──────────────────────────────────────── */
+        #aiBanner {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 12px;
+            color: #fff;
+            padding: 12px 18px;
+        }
+
+        /* ── Toast ──────────────────────────────────────────── */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 9999;
+            transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* ── Scrollbar ─────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        /* ── Animations ─────────────────────────────────────── */
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: fadeSlideIn 0.35s ease both; }
+
+        @keyframes pulse-ring {
+            0%   { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+            70%  { box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+            100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+        }
+        .pulse-once { animation: pulse-ring 0.6s ease; }
+
+        /* ── Loading overlay ────────────────────────────────── */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(248,250,252,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            gap: 16px;
+        }
+        .spinner-ring {
+            width: 44px; height: 44px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Done screen ────────────────────────────────────── */
+        #doneScreen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            gap: 16px;
+        }
+        .confetti-emoji { font-size: 64px; animation: bounce 1s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+    </style>
+</head>
+
+<body>
+
+<!-- ── Top Nav ───────────────────────────────────────────── -->
+<nav class="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <a href="/" class="text-slate-500 hover:text-slate-800 transition text-sm flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                AI Tagger
+            </a>
+            <span class="text-slate-300">|</span>
+            <span class="font-semibold text-slate-800 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Duplicate Resolver
+            </span>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span id="navStatus">Chưa tải dữ liệu</span>
+            <div id="navDot" class="w-2 h-2 rounded-full bg-slate-300"></div>
+        </div>
+    </div>
+</nav>
+
+<!-- ── Loading Overlay (connect phase) ─────────────────── -->
+<div id="loadingOverlay">
+    <div class="spinner-ring"></div>
+    <p class="text-slate-600 font-medium" id="loadingMsg">Đang kết nối AnkiConnect...</p>
+</div>
+
+<!-- ── Search Config Panel (shown after connect) ────────── -->
+<div id="searchPanel" class="hidden" style="position:fixed;inset:0;background:rgba(248,250,252,0.97);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:99;gap:20px;padding:24px;">
+    <div style="max-width:480px;width:100%;background:#fff;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 8px 40px rgba(0,0,0,0.08);padding:32px;">
+        <div class="text-center mb-6">
+            <div style="font-size:40px;margin-bottom:8px;">🔍</div>
+            <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin:0;">Tìm Thẻ Trùng Lặp</h2>
+            <p style="font-size:13px;color:#64748b;margin-top:6px;">Chọn cách tìm thẻ trùng của bạn</p>
+        </div>
+
+        <!-- Option 1: by tag -->
+        <div id="optTag" onclick="selectSearchMode('tag')" style="border:2px solid #6366f1;border-radius:12px;padding:16px;cursor:pointer;margin-bottom:12px;background:#faf5ff;transition:all 0.15s;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="font-weight:600;color:#4f46e5;font-size:14px;">🏷 Theo Tag</span>
+                <span style="margin-left:8px;font-size:11px;background:#6366f1;color:#fff;padding:2px 8px;border-radius:999px;">Mặc định</span>
+            </div>
+            <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Tìm các thẻ có tag cụ thể, sau đó nhóm theo nội dung Front.</p>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-size:12px;color:#334155;white-space:nowrap;">Tag:</span>
+                <input id="tagInput" type="text" value="duplicate"
+                    style="flex:1;border:1px solid #c7d2fe;border-radius:8px;padding:6px 12px;font-size:13px;outline:none;background:#fff;"
+                    onclick="event.stopPropagation()"
+                    placeholder="duplicate"
+                >
+            </div>
+        </div>
+
+        <!-- Option 2: scan all -->
+        <div id="optAll" onclick="selectSearchMode('all')" style="border:2px solid #e2e8f0;border-radius:12px;padding:16px;cursor:pointer;margin-bottom:16px;background:#f8fafc;transition:all 0.15s;">
+            <div style="font-weight:600;color:#1e293b;font-size:14px;margin-bottom:6px;">📦 Quét Toàn Bộ Collection</div>
+            <p style="font-size:12px;color:#64748b;margin:0;">Không cần tag. Tải tất cả thẻ rồi tự động dò thẻ trùng. <span style="color:#f59e0b;">⚠ Chậm hơn nếu deck lớn.</span></p>
+        </div>
+
+        <!-- NEW: Field Selection -->
+        <div style="margin-bottom:16px;background:#f1f5f9;border-radius:12px;padding:16px;border:1px dashed #cbd5e1;">
+            <label for="fieldSelect" style="display:block;font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:8px;">🎯 Ô (Field) Dùng Để So Sánh Trùng:</label>
+            <select id="fieldSelect" style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:13px;outline:none;background:#fff;color:#1e293b;">
+                <option value="Front">Đang tải danh sách ô...</option>
+            </select>
+            <p style="font-size:11px;color:#94a3b8;margin-top:8px;">App sẽ so sánh nội dung trong ô này để tìm các thẻ trùng nhau.</p>
+        </div>
+
+        <!-- Fuzzy Matching Toggle -->
+        <div style="margin-bottom:24px;background:#fffbeb;border-radius:12px;padding:14px 16px;border:1px solid #fde68a;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <input type="checkbox" id="fuzzyToggle" style="width:18px;height:18px;accent-color:#6366f1;">
+                <div>
+                    <span style="font-weight:600;color:#92400e;font-size:13px;">🧠 Fuzzy Matching (Gần giống)</span>
+                    <p style="font-size:11px;color:#a16207;margin:4px 0 0;">Tìm cả thẻ có nội dung gần giống (trên 90%). Bao gồm: lỗi chính tả, khoảng trắng, dấu câu khác nhau.</p>
+                </div>
+            </label>
+        </div>
+
+        <button onclick="startSearch()" style="width:100%;padding:13px;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity 0.15s;">
+            ⚡ Bắt Đầu Tìm Kiếm
+        </button>
+    </div>
+</div>
+
+<!-- ── Main App ──────────────────────────────────────────── -->
+<div id="appContent" class="hidden max-w-6xl mx-auto px-4 py-6 space-y-5">
+
+    <!-- Header row -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Duplicate Resolver</h1>
+            <p class="text-sm text-slate-500 mt-0.5">AI-powered · So sánh từng cặp thẻ · Chọn thẻ tốt hơn để giữ lại</p>
+        </div>
+        <!-- Progress -->
+        <div class="flex items-center gap-3 text-sm">
+            <span class="text-slate-500">Nhóm</span>
+            <span id="groupIndex" class="font-bold text-lg text-slate-800">0</span>
+            <span class="text-slate-400">/</span>
+            <span id="groupTotal" class="font-bold text-lg text-slate-800">0</span>
+            <div class="progress-track w-28 ml-2">
+                <div id="progressFill" class="progress-fill" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ AUTO-RESOLVE PANEL ══════════════════════════════ -->
+    <div id="autoPanel" style="background:linear-gradient(135deg,#1e293b 0%,#312e81 100%);border-radius:16px;padding:20px 24px;" class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span style="font-size:20px">🤖</span>
+                    <span class="font-bold text-white text-lg">Tự Động Xoá Tất Cả</span>
+                    <span id="autoModeBadge" class="badge" style="background:rgba(99,102,241,0.3);color:#a5b4fc;border-color:rgba(99,102,241,0.4);font-size:10px">AI Scoring</span>
+                </div>
+                <p class="text-indigo-200 text-sm">AI chấm điểm từng cặp (reps × 3 + interval × 2 − lapses + ease) rồi tự động giữ thẻ tốt hơn và xoá thẻ còn lại.</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btnAutoAll" onclick="autoResolveAll()" class="action-btn" style="background:#6366f1;color:#fff;border-color:#818cf8;font-size:15px;padding:12px 28px;">
+                    ⚡ Chạy Ngay
+                </button>
+                <button id="btnStopAuto" onclick="stopAutoResolve()" class="action-btn hidden" style="background:#dc2626;color:#fff;border-color:#f87171;">
+                    ⏹ Dừng
+                </button>
+            </div>
+        </div>
+
+        <!-- Auto progress bar -->
+        <div id="autoProgressWrap" class="hidden space-y-1.5">
+            <div class="flex justify-between text-xs text-indigo-300">
+                <span id="autoProgressLabel">Đang xử lý...</span>
+                <span id="autoProgressPct">0%</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.1);border-radius:999px;height:8px;overflow:hidden;">
+                <div id="autoProgressBar" style="height:100%;background:linear-gradient(90deg,#818cf8,#a78bfa);border-radius:999px;transition:width 0.25s ease;width:0%"></div>
+            </div>
+        </div>
+
+        <!-- Auto log -->
+        <div id="autoLog" class="hidden" style="background:rgba(0,0,0,0.35);border-radius:10px;padding:12px;max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace;line-height:1.6;color:#94a3b8;">
+            <div class="text-indigo-400 italic">Nhật ký tự động sẽ hiện ở đây...</div>
+        </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="flex items-center gap-3">
+        <div class="flex-1 h-px bg-slate-200"></div>
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">hoặc xem xét thủ công từng nhóm</span>
+        <div class="flex-1 h-px bg-slate-200"></div>
+    </div>
+
+    <!-- AI Banner (manual shortcuts) -->
+    <div id="aiBanner" class="flex items-center gap-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347A3.001 3.001 0 0112 21a3 3 0 01-2.47-1.307l-.346-.346z"/>
+        </svg>
+        <div class="flex-1 text-sm">
+            <span class="font-semibold">Thủ công:</span>
+            <kbd class="bg-white/20 text-white mx-1" style="box-shadow:0 2px 0 rgba(0,0,0,0.3)">1</kbd> Giữ A ·
+            <kbd class="bg-white/20 text-white mx-1" style="box-shadow:0 2px 0 rgba(0,0,0,0.3)">2</kbd> Giữ B ·
+            <kbd class="bg-white/20 text-white mx-1" style="box-shadow:0 2px 0 rgba(0,0,0,0.3)">Space</kbd> AI chọn ·
+            <kbd class="bg-white/20 text-white mx-1" style="box-shadow:0 2px 0 rgba(0,0,0,0.3)">S</kbd> Bỏ qua
+        </div>
+        <div id="aiBadge" class="badge" style="background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.3)">
+            Sẵn sàng
+        </div>
+    </div>
+
+    <!-- Card comparison area -->
+    <div id="comparisonArea" class="grid grid-cols-2 gap-5 animate-in">
+        <!-- Left card -->
+        <div id="card0" class="card-panel p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-blue"><kbd style="background:#1e40af;box-shadow:0 1px 0 #1e3a8a">1</kbd> Thẻ A</span>
+                    <span id="badge0" class="badge badge-slate">—</span>
+                </div>
+                <span id="noteId0" class="text-xs text-slate-400 font-mono"></span>
+            </div>
+            <!-- Deck & Note Type info -->
+            <div id="metaInfo0" class="flex gap-2 flex-wrap text-xs mb-1"></div>
+
+            <!-- Stats -->
+            <div id="stats0" class="flex gap-2 flex-wrap"></div>
+
+            <!-- Target content field -->
+            <div>
+                <div id="fieldLabel0" class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nội dung</div>
+                <div id="front0" class="field-content"></div>
+            </div>
+            <hr class="border-slate-100">
+            <!-- Back field -->
+            <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Back</div>
+                <div id="back0" class="field-content"></div>
+            </div>
+
+            <!-- Extra fields -->
+            <div id="extra0" class="space-y-2"></div>
+
+            <!-- Tags -->
+            <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Tags</div>
+                <div id="tags0" class="flex flex-wrap gap-1"></div>
+            </div>
+        </div>
+
+        <!-- Right card -->
+        <div id="card1" class="card-panel p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-green"><kbd style="background:#15803d;box-shadow:0 1px 0 #166534">2</kbd> Thẻ B</span>
+                    <span id="badge1" class="badge badge-slate">—</span>
+                </div>
+                <span id="noteId1" class="text-xs text-slate-400 font-mono"></span>
+            </div>
+            <!-- Deck & Note Type info -->
+            <div id="metaInfo1" class="flex gap-2 flex-wrap text-xs mb-1"></div>
+
+            <div id="stats1" class="flex gap-2 flex-wrap"></div>
+
+            <div>
+                <div id="fieldLabel1" class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nội dung</div>
+                <div id="front1" class="field-content"></div>
+            </div>
+            <hr class="border-slate-100">
+            <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Back</div>
+                <div id="back1" class="field-content"></div>
+            </div>
+
+            <div id="extra1" class="space-y-2"></div>
+
+            <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Tags</div>
+                <div id="tags1" class="flex flex-wrap gap-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex flex-wrap items-center justify-center gap-3">
+        <button id="btnKeep1" class="action-btn btn-keep-1" onclick="resolveKeep(0)">
+            <kbd>1</kbd> Giữ Thẻ A
+        </button>
+        <button id="btnAuto" class="action-btn btn-auto" onclick="resolveAuto()">
+            <kbd>Space</kbd> AI Chọn Tốt Nhất
+        </button>
+        <button id="btnKeep2" class="action-btn btn-keep-2" onclick="resolveKeep(1)">
+            <kbd>2</kbd> Giữ Thẻ B
+        </button>
+        <div class="w-px h-8 bg-slate-200 mx-1"></div>
+        <button id="btnSkip" class="action-btn btn-skip" onclick="skipGroup()">
+            <kbd>S</kbd> Bỏ Qua
+        </button>
+        <button id="btnDeleteAll" class="action-btn btn-delete-all" onclick="resolveDeleteAll()">
+            🗑 Xóa Tất Cả Nhóm
+        </button>
+    </div>
+
+    <!-- Multi-note warning (>2 dupes) -->
+    <div id="multiNoteWarning" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-800">
+        <strong>⚠ Nhóm này có nhiều hơn 2 thẻ trùng.</strong>
+        Đang hiển thị 2 thẻ đầu tiên. Sau khi xử lý xong cặp này, các thẻ còn lại sẽ xuất hiện ở nhóm tiếp theo.
+    </div>
+
+    <!-- Group info bar -->
+    <div id="groupBar" class="flex flex-wrap items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Front chung: </span>
+        <strong id="frontKey" class="text-slate-700 truncate max-w-xs"></strong>
+        <span class="ml-auto text-slate-400" id="groupSizeInfo"></span>
+    </div>
+
+    <!-- Done screen (hidden initially) -->
+    <div id="doneScreen">
+        <div class="confetti-emoji">🎉</div>
+        <h2 class="text-2xl font-bold text-slate-800">Xong rồi!</h2>
+        <p class="text-slate-500 text-center max-w-sm">Tất cả nhóm trùng lặp đã được xử lý.<br>Bộ bài thẻ của bạn đã được dọn dẹp sạch sẽ.</p>
+        <div class="flex gap-3 mt-4">
+            <button onclick="reloadApp()" class="action-btn btn-auto">
+                🔄 Tải lại từ đầu
+            </button>
+            <a href="/" class="action-btn btn-skip">
+                ← Về trang chính
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  AnkiConnect helpers — routed via Flask proxy to avoid CORS
+// ══════════════════════════════════════════════════════════
+async function ankiInvoke(action, params = {}) {
+    const resp = await fetch('/anki-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, version: 6, params })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    return data.result;
+}
+
+// ══════════════════════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════════════════════
+let groups        = [];   // Array of { frontKey, notes: [...noteInfo] }
+let currentIndex  = 0;
+let statsCache    = {};   // noteId -> { reps, lapses, interval, ease }
+let resolvedCount = 0;
+let skippedCount  = 0;
+let activeTag     = 'duplicate'; // tag that was searched — used when removing tags
+
+// ══════════════════════════════════════════════════════════
+//  Search mode state
+// ══════════════════════════════════════════════════════════
+let searchMode = 'tag'; // 'tag' | 'all'
+
+function selectSearchMode(mode) {
+    searchMode = mode;
+    document.getElementById('optTag').style.border = mode === 'tag'
+        ? '2px solid #6366f1' : '2px solid #e2e8f0';
+    document.getElementById('optTag').style.background = mode === 'tag' ? '#faf5ff' : '#f8fafc';
+    document.getElementById('optAll').style.border = mode === 'all'
+        ? '2px solid #6366f1' : '2px solid #e2e8f0';
+    document.getElementById('optAll').style.background = mode === 'all' ? '#faf5ff' : '#f8fafc';
+}
+
+function startSearch() {
+    const sel = document.getElementById('fieldSelect');
+    selectedCompareField = sel.value;
+    useFuzzy = document.getElementById('fuzzyToggle').checked;
+    document.getElementById('searchPanel').style.display = 'none';
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    document.querySelector('#loadingOverlay .spinner-ring').style.display = '';
+    loadNotes();
+}
+
+// ══════════════════════════════════════════════════════════
+//  Boot — connect then show config panel
+// ══════════════════════════════════════════════════════════
+async function boot() {
+    setLoadingMsg('Đang kết nối AnkiConnect...');
+    try {
+        await ankiInvoke('version');
+    } catch (e) {
+        setLoadingMsg('❌ Không thể kết nối AnkiConnect!\nHãy mở Anki và bật AnkiConnect (port 8765).');
+        document.querySelector('#loadingOverlay .spinner-ring').style.display = 'none';
+        return;
+    }
+
+    // 4. Discover Fields
+    setLoadingMsg('🔎 Đang kiểm tra cấu trúc thẻ của bạn...');
+    try {
+        const sampleIds = await ankiInvoke('findNotes', { query: 'deck:*' }) || [];
+        if (sampleIds.length > 0) {
+            // Take first 10 notes to get a good sample of fields
+            const samples = await ankiInvoke('notesInfo', { notes: sampleIds.slice(0, 10) }) || [];
+            const allFields = new Set();
+            samples.forEach(s => Object.keys(s.fields || {}).forEach(f => allFields.add(f)));
+
+            const sortedFields = Array.from(allFields).sort();
+            const sel = document.getElementById('fieldSelect');
+            sel.innerHTML = '';
+
+            sortedFields.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                // Auto-select common names
+                if (['Front', 'Question', 'Text', 'Mặt trước', 'Giao diện'].includes(f)) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) { console.error("Field discovery error", e); }
+
+    // Connected — show search config panel
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('searchPanel').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════════════════
+//  Load notes (called after user picks search mode)
+// ══════════════════════════════════════════════════════════
+let selectedCompareField = 'Front';
+let useFuzzy = false;
+
+async function loadNotes() {
+    const BATCH = 1000;
+    let noteIds = [];
+
+    if (searchMode === 'tag') {
+        const tag = (document.getElementById('tagInput').value || 'duplicate').trim();
+        activeTag = tag;   // remember for removeTags later
+        setLoadingMsg(`🔍 Tìm thẻ có tag: ${tag}...`);
+        setLoadingProgress(5);
+        try {
+            noteIds = await ankiInvoke('findNotes', { query: `tag:${tag}` }) || [];
+        } catch(e) { noteIds = []; }
+
+        if (noteIds.length === 0) {
+            setLoadingMsg(`⚠ Không tìm thấy thẻ nào có tag "${tag}".\nThử chọn "Quét Toàn Bộ Collection".`);
+            document.querySelector('#loadingOverlay .spinner-ring').style.display = 'none';
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('searchPanel').style.display = 'flex';
+            }, 2500);
+            return;
+        }
+    } else {
+        // Scan all notes — no specific tag to remove
+        activeTag = null;
+        setLoadingMsg('📦 Đang tải toàn bộ thẻ trong collection...');
+        setLoadingProgress(5);
+        try {
+            noteIds = await ankiInvoke('findNotes', { query: 'deck:*' }) || [];
+        } catch(e) { noteIds = []; }
+        if (noteIds.length === 0) {
+            setLoadingMsg('❌ Không tìm thấy thẻ nào trong Anki!');
+            document.querySelector('#loadingOverlay .spinner-ring').style.display = 'none';
+            return;
+        }
+    }
+
+    // Step 2 — fetch notesInfo in PARALLEL batches of 100
+    const noteBatches = chunkArray(noteIds, BATCH);
+    setLoadingMsg(`📦 Đang tải ${noteIds.length} thẻ (${noteBatches.length} batch song song)...`);
+    setLoadingProgress(10);
+
+    const noteResults = await Promise.all(
+        noteBatches.map(batch => ankiInvoke('notesInfo', { notes: batch }).catch(() => []))
+    );
+    const notesInfo = noteResults.flat();
+    setLoadingProgress(50);
+
+    // Step 3 — group by Selected Field
+    const exactGroups = {};
+    for (const note of notesInfo) {
+        const rawVal = note.fields?.[selectedCompareField]?.value;
+        const frontHtml = rawVal !== undefined ? rawVal : (note.fields?.Front?.value || note.fields?.front?.value || '');
+        const frontKey  = stripTags(frontHtml).trim().toLowerCase();
+        if (!frontKey) continue;
+        
+        if (!exactGroups[frontKey]) exactGroups[frontKey] = { frontKey, notes: [] };
+        exactGroups[frontKey].notes.push(note);
+    }
+
+    if (useFuzzy) {
+        setLoadingMsg(`🧠 Fuzzy matching (so sánh gần đúng)...`);
+        const grouped = {};
+        const uniqueKeys = Object.keys(exactGroups);
+        const used = new Set();
+        
+        // Semantic safety: words that flip meaning
+        const criticalWords = ['không', 'chưa', 'trừ', 'ngoại trừ', 'ngoại lệ', 'chỉ', 'luôn', 'tất cả'];
+        
+        const hasSemanticDifference = (str1, str2) => {
+            const words1 = new Set(str1.toLowerCase().split(/\s+/));
+            const words2 = new Set(str2.toLowerCase().split(/\s+/));
+            for (const w of criticalWords) {
+                if (words1.has(w) !== words2.has(w)) return true;
+            }
+            return false;
+        };
+
+        for (let i = 0; i < uniqueKeys.length; i++) {
+            if (used.has(i)) continue;
+            const clusterNotes = [...exactGroups[uniqueKeys[i]].notes];
+            used.add(i);
+            
+            if (i % 50 === 0) await sleep(1);
+
+            for (let j = i + 1; j < uniqueKeys.length; j++) {
+                if (used.has(j)) continue;
+                if (Math.abs(uniqueKeys[i].length - uniqueKeys[j].length) > 12) continue;
+                
+                const sim = similarity(uniqueKeys[i], uniqueKeys[j]);
+                if (sim >= 0.90) {
+                    // Safety check: even if 90% similar, if one has "không" and the other doesn't, skip grouping
+                    if (hasSemanticDifference(uniqueKeys[i], uniqueKeys[j])) continue;
+
+                    clusterNotes.push(...exactGroups[uniqueKeys[j]].notes);
+                    used.add(j);
+                }
+            }
+            if (clusterNotes.length >= 2) {
+                grouped[uniqueKeys[i]] = { frontKey: uniqueKeys[i], notes: clusterNotes };
+            }
+        }
+        groups = Object.values(grouped);
+    } else {
+        groups = Object.values(exactGroups).filter(g => g.notes.length >= 2);
+    }
+
+    groups.sort((a, b) => b.notes.length - a.notes.length);
+    setLoadingProgress(60);
+
+    // Step 4 — fetch cardsInfo ONLY for duplicate notes (huge optimization)
+    const duplicateNotes = groups.flatMap(g => g.notes);
+    const allCardIds = duplicateNotes.flatMap(n => n.cards || []);
+    
+    if (allCardIds.length > 0) {
+        const cardBatches = chunkArray(allCardIds, BATCH);
+        setLoadingMsg(`📊 Đang tải stats (${allCardIds.length} cards · ${cardBatches.length} batch)...`);
+
+        const cardResults = await Promise.all(
+            cardBatches.map(batch => ankiInvoke('cardsInfo', { cards: batch }).catch(() => []))
+        );
+        const cardsInfo = cardResults.flat();
+        setLoadingProgress(92);
+
+        const cardMap = {};
+        for (const ci of cardsInfo) {
+            const key = ci.cardId ?? ci.id ?? null;
+            if (key != null) cardMap[key] = ci;
+        }
+        for (const note of duplicateNotes) {
+            let maxReps = 0, maxInt = 0, lapses = 0, sumEase = 0, cnt = 0;
+            let deckName = '', noteTypeName = note.modelName || '';
+            for (const cid of (note.cards || [])) {
+                const ci = cardMap[cid];
+                if (!ci) continue;
+                maxReps = Math.max(maxReps, ci.reps || 0);
+                maxInt  = Math.max(maxInt,  ci.interval || 0);
+                lapses += (ci.lapses || 0);
+                sumEase += (ci.factor || 0);
+                cnt++;
+                if (!deckName && ci.deckName) deckName = ci.deckName;
+            }
+            statsCache[note.noteId] = {
+                reps:     maxReps,
+                interval: maxInt,
+                lapses:   lapses,
+                ease:     cnt > 0 ? Math.round(sumEase / cnt / 10) : 0,
+                deckName: deckName,
+                noteType: noteTypeName
+            };
+        }
+    }
+
+    setLoadingProgress(100);
+    updateNav(groups.length);
+    hideLoading();
+
+    if (groups.length === 0) {
+        showDone();
+        // Show helpful message
+        setTimeout(() => {
+            document.querySelector('#doneScreen p').innerHTML =
+                `Không tìm thấy thẻ nào trùng nhau theo nội dung Front.<br>Bộ bài thẻ đã sạch! 🎉`;
+        }, 50);
+        return;
+    }
+    renderGroup(0);
+}
+
+// ══════════════════════════════════════════════════════════
+//  Render current group
+// ══════════════════════════════════════════════════════════
+function renderGroup(idx) {
+    if (idx >= groups.length) { showDone(); return; }
+    currentIndex = idx;
+
+    const group = groups[idx];
+    const noteA = group.notes[0];
+    const noteB = group.notes[1];
+
+    // Reset card state
+    document.getElementById('card0').className = 'card-panel p-5 space-y-4 animate-in';
+    document.getElementById('card1').className = 'card-panel p-5 space-y-4 animate-in';
+
+    populateCard(0, noteA);
+    populateCard(1, noteB);
+
+    // Multi-note warning
+    const warn = document.getElementById('multiNoteWarning');
+    warn.classList.toggle('hidden', group.notes.length <= 2);
+
+    // Group bar
+    const fieldVal = group.notes[0].fields?.[selectedCompareField]?.value || group.notes[0].fields?.Front?.value || '—';
+    document.getElementById('frontKey').innerHTML = limitStr(fieldVal, 80);
+    document.getElementById('groupSizeInfo').textContent = `${group.notes.length} thẻ trùng`;
+
+    // Progress
+    const pct = Math.round((idx / groups.length) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('groupIndex').textContent = idx + 1;
+    document.getElementById('groupTotal').textContent  = groups.length;
+
+    // AI badge reset
+    document.getElementById('aiBadge').textContent = 'Sẵn sàng';
+    document.getElementById('aiBadge').style.background = 'rgba(255,255,255,0.2)';
+
+    // Buttons
+    enableButtons(true);
+    hideDone();
+    document.getElementById('comparisonArea').classList.remove('hidden');
+    document.getElementById('groupBar').classList.remove('hidden');
+}
+
+function populateCard(idx, note) {
+    const stats = statsCache[note.noteId] || { reps:0, interval:0, lapses:0, ease:0 };
+
+    document.getElementById(`noteId${idx}`).textContent = `#${note.noteId}`;
+
+    // Deck & Note Type meta row
+    const metaDiv = document.getElementById(`metaInfo${idx}`);
+    metaDiv.innerHTML = '';
+    if (stats.deckName) {
+        metaDiv.innerHTML += `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 8px;border-radius:999px;">📚 ${stats.deckName}</span>`;
+    }
+    if (stats.noteType) {
+        metaDiv.innerHTML += `<span style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;padding:1px 8px;border-radius:999px;">📝 ${stats.noteType}</span>`;
+    }
+
+    // Smart badge
+    const badge = document.getElementById(`badge${idx}`);
+    if (stats.reps === 0) {
+        badge.className = 'badge badge-slate'; badge.textContent = 'Chưa ôn';
+    } else if (stats.reps >= 10) {
+        badge.className = 'badge badge-green'; badge.textContent = `${stats.reps} lần ôn`;
+    } else {
+        badge.className = 'badge badge-amber'; badge.textContent = `${stats.reps} lần ôn`;
+    }
+
+    // Stats row
+    document.getElementById(`stats${idx}`).innerHTML = `
+        <div class="stat-item">
+            <span class="stat-value ${stats.reps > 0 ? 'text-indigo-600' : 'text-slate-400'}">${stats.reps}</span>
+            <span class="stat-label">Lần ôn</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value ${stats.interval > 0 ? 'text-emerald-600' : 'text-slate-400'}">${stats.interval > 0 ? formatInterval(stats.interval) : '—'}</span>
+            <span class="stat-label">Interval</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value ${stats.lapses > 0 ? 'text-rose-600' : 'text-slate-400'}">${stats.lapses}</span>
+            <span class="stat-label">Lỗi</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value ${stats.ease > 0 ? 'text-blue-600' : 'text-slate-400'}">${stats.ease > 0 ? stats.ease+'%' : '—'}</span>
+            <span class="stat-label">Ease</span>
+        </div>
+    `;
+
+    // Fields — Primary comparison field
+    const primaryLabel = document.getElementById(`fieldLabel${idx}`);
+    primaryLabel.textContent = selectedCompareField;
+
+    const valObj = note.fields?.[selectedCompareField];
+    const frontVal = valObj !== undefined ? valObj.value : (note.fields?.Front?.value || note.fields?.front?.value || '<em class="text-slate-400">Không có dữ liệu trong ô này</em>');
+    const backVal  = note.fields?.Back?.value  || note.fields?.back?.value  || '<em class="text-slate-400">Trống</em>';
+
+    document.getElementById(`front${idx}`).innerHTML = frontVal;
+    document.getElementById(`back${idx}`).innerHTML  = backVal;
+
+    // Extra fields
+    const extraDiv = document.getElementById(`extra${idx}`);
+    const skipFields = ['front', 'Front', 'back', 'Back', selectedCompareField];
+    const extraFields = Object.entries(note.fields || {}).filter(([k]) => !skipFields.includes(k));
+    if (extraFields.length > 0) {
+        extraDiv.innerHTML = extraFields.map(([k, v]) => `
+            <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">${k}</div>
+                <div class="field-content text-xs">${v.value || '<em class="text-slate-400">Trống</em>'}</div>
+            </div>
+        `).join('<hr class="border-slate-100">');
+    } else {
+        extraDiv.innerHTML = '';
+    }
+
+    // Tags
+    document.getElementById(`tags${idx}`).innerHTML =
+        (note.tags || []).map(t => `<span class="tag-pill">${t}</span>`).join('') || '<span class="text-slate-400 text-xs">Không có tag</span>';
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTO-RESOLVE ALL
+// ══════════════════════════════════════════════════════════
+let autoRunning = false;
+
+function aiScore(note) {
+    const s = statsCache[note.noteId] || {};
+    if ((s.reps || 0) === 0 && (s.interval || 0) === 0) {
+        // New card — score by Back content length
+        return { score: 0, byContent: true, contentLen: stripTags(note.fields?.Back?.value || '').length };
+    }
+    return {
+        score: (s.reps || 0) * 3 + (s.interval || 0) * 2 - (s.lapses || 0) + (s.ease || 0) / 10,
+        reps: s.reps || 0,
+        interval: s.interval || 0
+    };
+}
+
+function autoLog(html, color = '#94a3b8') {
+    const log = document.getElementById('autoLog');
+    const line = document.createElement('div');
+    line.style.color = color;
+    line.innerHTML = html;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+}
+
+function stopAutoResolve() {
+    autoRunning = false;
+    document.getElementById('btnStopAuto').classList.add('hidden');
+}
+
+async function autoResolveAll() {
+    if (groups.length === 0) { showToast('⚠ Không có nhóm nào!'); return; }
+
+    const confirmed = confirm(
+        `⚡ TỰ ĐỘNG XOÁ TẤT CẢ\n\nAI sẽ xử lý ${groups.length} nhóm trùng lặp.\n` +
+        `Thẻ có điểm cao hơn (reps/interval/ease) sẽ được giữ lại.\n\n` +
+        `Thao tác này KHÔNG THỂ hoàn tác. Tiếp tục?`
+    );
+    if (!confirmed) return;
+
+    // Setup UI
+    autoRunning = true;
+    document.getElementById('btnAutoAll').disabled = true;
+    document.getElementById('btnAutoAll').style.opacity = '0.5';
+    document.getElementById('btnStopAuto').classList.remove('hidden');
+    document.getElementById('autoProgressWrap').classList.remove('hidden');
+    document.getElementById('autoLog').classList.remove('hidden');
+    document.getElementById('autoLog').innerHTML = '';
+    enableButtons(false);
+
+    // Hide manual comparison during auto run
+    document.getElementById('comparisonArea').classList.add('hidden');
+
+    const total = groups.length;
+    let done = 0, deleted = 0, kept = 0;
+
+    autoLog(`🤖 Bắt đầu tự động xử lý <strong>${total}</strong> nhóm...`, '#a5b4fc');
+
+    for (let i = currentIndex; i < groups.length; i++) {
+        if (!autoRunning) {
+            autoLog('⏹ Đã dừng theo yêu cầu.', '#fca5a5');
+            break;
+        }
+
+        const group = groups[i];
+        const notes  = group.notes;
+
+        // Score ALL notes in this group (handles 3+ dupes)
+        // Reviewed cards always beat new cards; among same tier, higher score wins
+        const scored = notes.map(n => ({ note: n, ...aiScore(n) }));
+        scored.sort((a, b) => {
+            const aNew = a.byContent === true;
+            const bNew = b.byContent === true;
+            if (!aNew && bNew) return -1;  // a has reviews, b is new → a wins
+            if (aNew && !bNew) return 1;   // b has reviews, a is new → b wins
+            if (aNew && bNew) return b.contentLen - a.contentLen; // both new → longer back wins
+            return b.score - a.score;      // both reviewed → higher score wins
+        });
+
+        const keepNote    = scored[0].note;
+        const deleteNotes = scored.slice(1).map(s => s.note);
+        const deleteIds   = deleteNotes.map(n => n.noteId);
+        const scoreInfo   = scored[0].byContent
+            ? `📝 nội dung (${scored[0].contentLen} ký tự)`
+            : `⭐ score ${Math.round(scored[0].score)} (reps:${scored[0].reps} int:${scored[0].interval})`;
+
+        try {
+            let newTags = [];
+            if (deleteIds.length > 0) {
+                // Tag Merging: collect all tags from deleted notes and add to kept note
+                const allDeleteTags = new Set();
+                deleteNotes.forEach(n => (n.tags || []).forEach(t => allDeleteTags.add(t)));
+                const keepTags = new Set(keepNote.tags || []);
+                newTags = [...allDeleteTags].filter(t => !keepTags.has(t) && t !== activeTag);
+                if (newTags.length > 0) {
+                    await ankiInvoke('addTags', { notes: [keepNote.noteId], tags: newTags.join(' ') });
+                }
+
+                await ankiInvoke('deleteNotes', { notes: deleteIds });
+            }
+            // Only remove tag if user searched by tag
+            if (activeTag) {
+                await ankiInvoke('removeTags', { notes: [keepNote.noteId], tags: activeTag });
+            }
+
+            deleted += deleteIds.length;
+            kept++;
+            done++;
+
+            const frontPreview = limitStr(keepNote.fields?.[selectedCompareField]?.value || keepNote.fields?.Front?.value || '', 40);
+            const mergeInfo = newTags.length > 0 ? ` · +${newTags.length} tags` : '';
+            autoLog(
+                `<span style="color:#6ee7b7">[${done}/${total}]</span> ` +
+                `Giữ <span style="color:#fff">#${keepNote.noteId}</span> · ` +
+                `xoá ${deleteIds.length} thẻ · ${scoreInfo}${mergeInfo} · ` +
+                `<span style="color:#64748b">"${frontPreview}"</span>`,
+                '#94a3b8'
+            );
+        } catch (e) {
+            autoLog(`❌ Nhóm ${i + 1} lỗi: ${e.message}`, '#fca5a5');
+        }
+
+        // Update progress
+        const pct = Math.round((done / total) * 100);
+        document.getElementById('autoProgressBar').style.width = pct + '%';
+        document.getElementById('autoProgressPct').textContent = pct + '%';
+        document.getElementById('autoProgressLabel').textContent = `${done} / ${total} nhóm`;
+        document.getElementById('groupIndex').textContent = i + 1;
+        document.getElementById('progressFill').style.width = pct + '%';
+        currentIndex = i + 1;
+
+        // Small yield to keep UI responsive
+        await sleep(30);
+    }
+
+    // Done
+    autoRunning = false;
+    document.getElementById('btnStopAuto').classList.add('hidden');
+    document.getElementById('btnAutoAll').disabled = false;
+    document.getElementById('btnAutoAll').style.opacity = '';
+    document.getElementById('btnAutoAll').textContent = '✅ Hoàn Tất';
+    document.getElementById('autoProgressLabel').textContent = 'Hoàn thành!';
+    document.getElementById('autoProgressBar').style.width = '100%';
+    document.getElementById('autoProgressPct').textContent = '100%';
+
+    autoLog(
+        `<br>✅ <strong style="color:#a5b4fc">XONG!</strong> ` +
+        `Đã giữ ${kept} thẻ · xoá tổng cộng <strong style="color:#f87171">${deleted} thẻ trùng</strong>.`,
+        '#a5b4fc'
+    );
+
+    resolvedCount += kept;
+    showToast(`🎉 Xong! Đã xoá ${deleted} thẻ trùng`);
+
+    // Show done screen after a moment
+    setTimeout(() => {
+        if (currentIndex >= groups.length) showDone();
+    }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════
+//  Resolve actions
+// ══════════════════════════════════════════════════════════
+async function resolveKeep(keepIdx) {
+    enableButtons(false);
+    const group   = groups[currentIndex];
+    const keepNote = group.notes[keepIdx];
+    const deleteNotes = group.notes.filter((_, i) => i !== keepIdx);
+
+    // Highlight winner / loser
+    document.getElementById(`card${keepIdx}`).classList.add('winner');
+    document.getElementById(`card${1-keepIdx}`).classList.add('loser');
+
+    await deleteAndAdvance(keepNote, deleteNotes, `Đã giữ Thẻ ${keepIdx === 0 ? 'A' : 'B'} · Xóa ${deleteNotes.length} thẻ`);
+}
+
+async function resolveAuto() {
+    enableButtons(false);
+    document.getElementById('aiBadge').textContent = '⚙ Đang phân tích…';
+
+    const group = groups[currentIndex];
+    const noteA = group.notes[0];
+    const noteB = group.notes[1];
+    const statsA = statsCache[noteA.noteId] || {};
+    const statsB = statsCache[noteB.noteId] || {};
+
+    // AI scoring: reps × 3 + interval × 2 + (lapses penalty) + ease
+    const scoreA = (statsA.reps || 0) * 3 + (statsA.interval || 0) * 2 - (statsA.lapses || 0) + (statsA.ease || 0) / 10;
+    const scoreB = (statsB.reps || 0) * 3 + (statsB.interval || 0) * 2 - (statsB.lapses || 0) + (statsB.ease || 0) / 10;
+
+    let keepIdx;
+    if (scoreA === 0 && scoreB === 0) {
+        // Both are new cards — keep the one with richer content
+        const lenA = stripTags(noteA.fields?.Back?.value || '').length;
+        const lenB = stripTags(noteB.fields?.Back?.value || '').length;
+        keepIdx = lenA >= lenB ? 0 : 1;
+        document.getElementById('aiBadge').textContent = `📝 Giữ thẻ có nội dung dài hơn`;
+    } else {
+        keepIdx = scoreA >= scoreB ? 0 : 1;
+        const winScore = keepIdx === 0 ? scoreA : scoreB;
+        document.getElementById('aiBadge').textContent = `🏆 AI score: ${Math.round(winScore)}`;
+    }
+
+    document.getElementById('aiBadge').style.background = 'rgba(255,255,255,0.35)';
+
+    const keepNote    = group.notes[keepIdx];
+    const deleteNotes = group.notes.filter((_, i) => i !== keepIdx);
+
+    document.getElementById(`card${keepIdx}`).classList.add('winner');
+    document.getElementById(`card${1-keepIdx}`).classList.add('loser');
+
+    await new Promise(r => setTimeout(r, 400)); // brief pause to show result
+    await deleteAndAdvance(keepNote, deleteNotes, `AI chọn Thẻ ${keepIdx === 0 ? 'A' : 'B'} · score Δ ${Math.abs(Math.round(scoreA - scoreB))}`);
+}
+
+async function resolveDeleteAll() {
+    if (!confirm('⚠ Xóa TẤT CẢ thẻ trong nhóm này (không giữ lại thẻ nào)?\nThao tác này không thể hoàn tác.')) return;
+    enableButtons(false);
+    const group = groups[currentIndex];
+    document.getElementById('card0').classList.add('loser');
+    document.getElementById('card1').classList.add('loser');
+    await deleteAndAdvance(null, group.notes, `Đã xóa tất cả ${group.notes.length} thẻ trong nhóm`);
+}
+
+async function deleteAndAdvance(keepNote, deleteNotes, msg) {
+    const deleteIds = deleteNotes.map(n => n.noteId);
+    try {
+        if (deleteIds.length > 0) {
+            // Tag Merging: collect all unique tags from deleted notes
+            if (keepNote) {
+                const allDeleteTags = new Set();
+                deleteNotes.forEach(n => (n.tags || []).forEach(t => allDeleteTags.add(t)));
+                const keepTags = new Set(keepNote.tags || []);
+                const newTags = [...allDeleteTags].filter(t => !keepTags.has(t) && t !== activeTag);
+                if (newTags.length > 0) {
+                    await ankiInvoke('addTags', { notes: [keepNote.noteId], tags: newTags.join(' ') });
+                    showToast(`🏷 +${newTags.length} tags gộp vào thẻ giữ lại`, 1500);
+                }
+            }
+            await ankiInvoke('deleteNotes', { notes: deleteIds });
+        }
+        // Remove tag from kept note (only if user searched by tag)
+        if (keepNote && activeTag) {
+            await ankiInvoke('removeTags', { notes: [keepNote.noteId], tags: activeTag });
+        }
+        resolvedCount++;
+        showToast(`✅ ${msg}`);
+    } catch (e) {
+        showToast(`❌ Lỗi AnkiConnect: ${e.message}`);
+        enableButtons(true);
+        return;
+    }
+    await sleep(300);
+    nextGroup();
+}
+
+function skipGroup() {
+    skippedCount++;
+    showToast('⏭ Đã bỏ qua nhóm này');
+    nextGroup();
+}
+
+function nextGroup() {
+    const next = currentIndex + 1;
+    if (next >= groups.length) {
+        showDone();
+    } else {
+        renderGroup(next);
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  Keyboard shortcuts
+// ══════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    // Block shortcuts when done screen is showing
+    if (document.getElementById('doneScreen').style.display === 'flex') return;
+
+    const active = !document.getElementById('btnKeep1').disabled;
+    if (!active) return;
+
+    if (e.key === '1') { flashKey('1'); resolveKeep(0); }
+    else if (e.key === '2') { flashKey('2'); resolveKeep(1); }
+    else if (e.key === ' ') { e.preventDefault(); flashKey('Space'); resolveAuto(); }
+    else if (e.key === 's' || e.key === 'S') { flashKey('S'); skipGroup(); }
+});
+
+function flashKey(label) {
+    // Visual: briefly highlight the button
+    const map = { '1':'btnKeep1', '2':'btnKeep2', 'Space':'btnAuto', 'S':'btnSkip' };
+    const btn = document.getElementById(map[label]);
+    if (btn) { btn.classList.add('pulse-once'); setTimeout(() => btn.classList.remove('pulse-once'), 700); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  UI helpers
+// ══════════════════════════════════════════════════════════
+function enableButtons(on) {
+    ['btnKeep1','btnKeep2','btnAuto','btnSkip','btnDeleteAll'].forEach(id => {
+        const el = document.getElementById(id);
+        el.disabled = !on;
+        el.style.opacity = on ? '' : '0.4';
+        el.style.cursor  = on ? '' : 'not-allowed';
+    });
+}
+
+function showToast(msg, dur = 2200) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function setLoadingMsg(msg) {
+    document.getElementById('loadingMsg').textContent = msg;
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('appContent').classList.remove('hidden');
+}
+
+function showDone() {
+    document.getElementById('comparisonArea').classList.add('hidden');
+    document.getElementById('groupBar').classList.add('hidden');
+    document.getElementById('multiNoteWarning').classList.add('hidden');
+    // Hide action buttons row too
+    const actRow = document.querySelector('.flex.flex-wrap.items-center.justify-center.gap-3');
+    if (actRow) actRow.style.display = 'none';
+    const done = document.getElementById('doneScreen');
+    done.style.display = 'flex';
+
+    // summary
+    done.querySelector('p').innerHTML =
+        `Đã xử lý <strong>${resolvedCount}</strong> nhóm · Bỏ qua <strong>${skippedCount}</strong> nhóm.<br>Bộ bài thẻ của bạn đã được dọn dẹp! 🧹`;
+
+    // Update nav
+    document.getElementById('navStatus').textContent = 'Hoàn thành';
+    document.getElementById('navDot').className = 'w-2 h-2 rounded-full bg-emerald-400';
+}
+
+function hideDone() {
+    document.getElementById('doneScreen').style.display = 'none';
+    // Restore action buttons row
+    const actRow = document.querySelector('.flex.flex-wrap.items-center.justify-center.gap-3');
+    if (actRow) actRow.style.display = '';
+}
+
+function updateNav(total) {
+    document.getElementById('navStatus').textContent = `${total} nhóm trùng lặp`;
+    document.getElementById('navDot').className = 'w-2 h-2 rounded-full bg-indigo-400';
+}
+
+function reloadApp() {
+    groups        = [];
+    currentIndex  = 0;
+    statsCache    = {};
+    resolvedCount = 0;
+    skippedCount  = 0;
+    autoRunning   = false;
+    // Reset auto-resolve panel
+    const btnAutoAll = document.getElementById('btnAutoAll');
+    btnAutoAll.disabled = false;
+    btnAutoAll.style.opacity = '';
+    btnAutoAll.innerHTML = '⚡ Chạy Ngay';
+    document.getElementById('btnStopAuto').classList.add('hidden');
+    document.getElementById('autoProgressWrap').classList.add('hidden');
+    document.getElementById('autoLog').classList.add('hidden');
+    // Restore action buttons row
+    const actRow = document.querySelector('.flex.flex-wrap.items-center.justify-center.gap-3');
+    if (actRow) actRow.style.display = '';
+    document.getElementById('doneScreen').style.display = 'none';
+    document.getElementById('appContent').classList.add('hidden');
+    // Go back to search panel (user can pick tag or scan-all)
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('searchPanel').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════════════════
+//  Utils
+// ══════════════════════════════════════════════════════════
+function stripTags(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+}
+
+function limitStr(str, max) {
+    const plain = stripTags(str);
+    return plain.length > max ? plain.slice(0, max) + '…' : plain;
+}
+
+function formatInterval(days) {
+    if (days < 1)   return '<1d';
+    if (days < 30)  return days + 'd';
+    if (days < 365) return Math.round(days/30) + 'mo';
+    return (days/365).toFixed(1) + 'y';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Split array into chunks of given size
+function chunkArray(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+}
+
+// Update the loading progress bar (0-100)
+function setLoadingProgress(pct) {
+    let bar = document.getElementById('loadingProgressBar');
+    if (!bar) {
+        // Create inline progress bar inside the overlay on first call
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'width:220px;height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden;';
+        bar = document.createElement('div');
+        bar.id = 'loadingProgressBar';
+        bar.style.cssText = 'height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:999px;transition:width 0.3s ease;width:0%';
+        wrap.appendChild(bar);
+        document.getElementById('loadingOverlay').appendChild(wrap);
+    }
+    bar.style.width = Math.min(100, pct) + '%';
+}
+
+// Levenshtein distance for fuzzy matching
+function levenshtein(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    // Optimize: if strings are identical, skip
+    if (a === b) return 0;
+    // Optimize: limit to first 200 chars for performance
+    if (a.length > 200) a = a.substring(0, 200);
+    if (b.length > 200) b = b.substring(0, 200);
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b[i-1] === a[j-1]) {
+                matrix[i][j] = matrix[i-1][j-1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i-1][j-1] + 1,
+                    matrix[i][j-1] + 1,
+                    matrix[i-1][j] + 1
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+function similarity(a, b) {
+    if (a === b) return 1;
+    const maxLen = Math.max(a.length, b.length);
+    if (maxLen === 0) return 1;
+    return 1 - levenshtein(a, b) / maxLen;
+}
+
+// ══════════════════════════════════════════════════════════
+//  Start
+// ══════════════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
