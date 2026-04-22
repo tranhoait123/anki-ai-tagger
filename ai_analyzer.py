@@ -39,7 +39,7 @@ def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str) -> 
     2. Hội chứng / Bệnh lý nghi ngờ.
     3. Trích xuất Tag: Khẳng định keyword hoặc dùng Tag mặc định.
     
-    Dựa vào lập luận, xuất ra từ 1-3 Tag mới ở `suggested_tags`. Đảm bảo trả về mảng `results` bao hàm ĐẦY ĐỦ số lượng thẻ đã cho, không được bỏ sót thẻ nào!
+    Dựa vào lập luận, xuất các Tag mới vào `suggested_tags`. SỐ LƯỢNG VÀ TÊN TAG PHẢI TUÂN THỦ NGHIÊM NGẶT THEO QUY TẮC TRONG HƯỚNG DẪN HỆ THỐNG Ở TRÊN. Đảm bảo trả về mảng `results` bao hàm ĐẦY ĐỦ số lượng thẻ đã cho, không được bỏ sót thẻ nào!
     """
 
     max_attempts = len(config.GEMINI_API_KEYS)

@@ -24,12 +24,14 @@ def run_scan_generator():
     # Xác định chế độ quét ngay từ đầu để log chẩn đoán
     prompt_norm = config.SYSTEM_PROMPT.strip().replace("\r\n", "\n")
     case_prompt_norm = config.SPECIALTY_PROMPTS.get("Case_lam_sang", "").strip().replace("\r\n", "\n")
+    qa_prompt_norm = config.SPECIALTY_PROMPTS.get("Chat_hoi_dap", "").strip().replace("\r\n", "\n")
     is_clinical_mode = (prompt_norm == case_prompt_norm) or ("Xác định xem nội dung thẻ Anki có phải là một \"Ca lâm sàng\"" in config.SYSTEM_PROMPT)
+    is_qa_mode = (prompt_norm == qa_prompt_norm) or ("CÂU HỎI THỰC SỰ" in config.SYSTEM_PROMPT and "CÂU HỎI KHÔNG ĐẦY ĐỦ" in config.SYSTEM_PROMPT)
     
-    mode_name = "Case lâm sàng" if is_clinical_mode else "Chuyên khoa"
+    mode_name = "Nhận diện Câu hỏi" if is_qa_mode else ("Case lâm sàng" if is_clinical_mode else "Chuyên khoa")
     yield {"type": "info", "msg": f"[*] Chế độ nhận diện: <b>{mode_name}</b>"}
 
-    # Lấy thôngত্তি chi tiết của các notes
+    # Lấy thông tin chi tiết của các notes
     notes_info = get_notes_info(note_ids)
     tagged_count = 0
     total = len(notes_info)
@@ -68,7 +70,11 @@ def run_scan_generator():
         existing_tags = note.get('tags', [])
         
         # Kiểm tra xem thẻ đã được xử lý chưa
-        if is_clinical_mode:
+        if is_qa_mode:
+            # Trong chế độ Nhận diện Câu hỏi: Bỏ qua nếu đã có tag kết quả
+            if any(tag in ['cau_hoi_hoan_chinh', 'cau_hoi_khong_day_du'] for tag in existing_tags):
+                continue
+        elif is_clinical_mode:
             # Trong chế độ Case Lâm Sàng: Bỏ qua nếu đã có tag kết quả lâm sàng
             if any(tag in ['case_lam_sang', '0_xac_dinh_case'] for tag in existing_tags):
                 continue
