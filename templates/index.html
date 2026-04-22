@@ -93,9 +93,20 @@
                     </div>
                 </div>
 
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="block font-medium text-slate-400">Loại Bỏ Fields <span class="text-xs text-slate-500">(Trường không đọc)</span></label>
+                        <input type="text" id="exclude" value="{{ exclude }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner" placeholder="VD: Note, Source">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block font-medium text-slate-400">Giới Hạn Tổng <span class="text-xs text-slate-500">(Trống = Hết)</span></label>
+                        <input type="number" id="limit" value="{{ max_cards }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-emerald-500 transition shadow-inner" placeholder="VD: 100">
+                    </div>
+                </div>
+
                 <div class="space-y-1">
-                    <label class="block font-medium text-slate-400">Loại Bỏ Fields <span class="text-xs text-slate-500">(Ngăn AI đọc thẻ rác, cách bằng dấu phẩy)</span></label>
-                    <input type="text" id="exclude" value="{{ exclude }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner" placeholder="VD: Note, Source, Tags">
+                    <label class="block font-medium text-slate-400">Số Thẻ/Lần Gửi AI (Batch Size) <span class="text-xs text-slate-500">(Mặc định 50 thẻ)</span></label>
+                    <input type="number" id="batch_size" value="{{ batch_size }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner" placeholder="VD: 50">
                 </div>
 
                 <div class="space-y-4 pt-4 border-t border-slate-700/50">
@@ -255,7 +266,9 @@
                 deck: document.getElementById('deck').value,
                 source_tag: document.getElementById('source_tag').value,
                 exclude: document.getElementById('exclude').value,
-                system_prompt: document.getElementById('system_prompt').value
+                system_prompt: document.getElementById('system_prompt').value,
+                limit: document.getElementById('limit').value,
+                batch_size: document.getElementById('batch_size').value
             };
 
             try {

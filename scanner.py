@@ -51,6 +51,11 @@ def run_scan_generator():
     batch_buffer = []
     
     for idx, note in enumerate(notes_info):
+        # Kiểm tra giới hạn số lượng thẻ xử lý
+        if config.MAX_CARDS_PER_RUN and tagged_count >= config.MAX_CARDS_PER_RUN:
+            yield {"type": "warning", "msg": f"✨ Đã đạt giới hạn xử lý {config.MAX_CARDS_PER_RUN} thẻ. Dừng quét."}
+            break
+
         note_id = note['noteId']
         
         # Cập nhật tiến trình
@@ -124,6 +129,10 @@ def run_scan_generator():
                         tagged_count += 1
                         tags_str = ", ".join(new_tags)
                         yield {"type": "success", "msg": f"Đã gắn tags '{tags_str}' cho NoteID: {res.note_id}<br><b>Lập luận:</b> {res.reasoning} (Độ tin cậy: {res.confidence:.2f})"}
+                        
+                        # Kiểm tra giới hạn ngay sau khi gắn tag để dừng sớm nhất có thể
+                        if config.MAX_CARDS_PER_RUN and tagged_count >= config.MAX_CARDS_PER_RUN:
+                            break
                     else:
                         yield {"type": "warning", "msg": f"Bỏ qua NoteID: {res.note_id}. Không có dữ kiện đủ đặc hiệu."}
             else:
@@ -132,6 +141,11 @@ def run_scan_generator():
             # Xả rỗng Cỗ Máy Nhồi Lô để chuẩn bị cho nhóm tiếp theo
             batch_buffer = []
             time.sleep(1)
+            
+            # Kiểm tra giới hạn một lần nữa sau khi xử lý xong lô
+            if config.MAX_CARDS_PER_RUN and tagged_count >= config.MAX_CARDS_PER_RUN:
+                yield {"type": "warning", "msg": f"✨ Đã đạt giới hạn xử lý {config.MAX_CARDS_PER_RUN} thẻ. Dừng quét."}
+                break
 
     yield {"type": "done", "msg": f"HOÀN TẤT! Đã gắn tag thành công cho {tagged_count}/{len(note_ids)} thẻ."}
 

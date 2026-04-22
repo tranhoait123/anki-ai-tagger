@@ -37,7 +37,9 @@ def index():
         system_prompt=getattr(config, 'SYSTEM_PROMPT', ''),
         specialty_prompts=getattr(config, 'SPECIALTY_PROMPTS', {}),
         available_models=getattr(config, 'AVAILABLE_MODELS', []),
-        current_model=getattr(config, 'CURRENT_MODEL', 'gemini-3.1-flash-lite-preview')
+        current_model=getattr(config, 'CURRENT_MODEL', 'gemini-3.1-flash-lite-preview'),
+        max_cards=getattr(config, 'MAX_CARDS_PER_RUN', '') if getattr(config, 'MAX_CARDS_PER_RUN', None) is not None else '',
+        batch_size=getattr(config, 'BATCH_SIZE', 50)
     )
 
 @app.route("/save_config", methods=["POST"])
@@ -57,6 +59,22 @@ def save_config():
     config.FIELDS_TO_EXCLUDE = [x.strip() for x in exclude_str.split(",") if x.strip()]
     
     config.SYSTEM_PROMPT = data.get("system_prompt", getattr(config, 'SYSTEM_PROMPT', ''))
+    
+    batch_size = data.get("batch_size")
+    if batch_size:
+        try:
+            config.BATCH_SIZE = int(batch_size)
+        except ValueError:
+            config.BATCH_SIZE = 50
+    
+    limit = data.get("limit")
+    if limit is not None and str(limit).strip() != "":
+        try:
+            config.MAX_CARDS_PER_RUN = int(limit)
+        except ValueError:
+            config.MAX_CARDS_PER_RUN = None
+    else:
+        config.MAX_CARDS_PER_RUN = None
     
     return jsonify({"status": "success"})
 

@@ -71,7 +71,8 @@ def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str) -> 
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     response_schema=BatchDiagnosisResult,
-                    temperature=0.0 # Kết quả mang tính logic chặt chẽ, lặp lại tốt nhất
+                    temperature=0.0, # Kết quả mang tính logic chặt chẽ, lặp lại tốt nhất
+                    max_output_tokens=65536 # Mở khoá tối đa đầu ra cho Gemini 3.1 (65k tokens)
                 ),
                 safety_settings=safety_settings
             )
