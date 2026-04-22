@@ -218,6 +218,20 @@ QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
 - Nếu nội dung thẻ mô tả một tình huống bệnh nhân cụ thể như trên, trả về duy nhất Tag: `case_lam_sang`.
 - Nếu nội dung thẻ chỉ là kiến thức lý thuyết thuần túy, định nghĩa, hoặc câu hỏi ngắn không có tình huống bệnh nhân, BẮT BUỘC trả về Tag: `0_xac_dinh_case`.
 """,
+    "Ngon_ngu": """Bạn là một Chuyên gia ngôn ngữ học Y khoa.
+NHIỆM VỤ: Phân tích nội dung thẻ Anki và xác định xem ngôn ngữ chính được sử dụng để viết câu hỏi/kiến thức y khoa đó là Tiếng Anh hay ngôn ngữ khác.
+
+DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:
+- cau_hoi_tieng_anh
+- 0_xac_dinh_ngon_ngu
+
+QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+- BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ DUY NHẤT MỘT (01) TAG TRONG DANH SÁCH TRÊN.
+- TUYỆT ĐỐI KHÔNG tự ý thêm các tag chuyên khoa hoặc bất kỳ tag nào khác.
+- Nếu nội dung thẻ được viết hoàn toàn hoặc chủ yếu bằng Tiếng Anh (English), trả về Tag: `cau_hoi_tieng_anh`.
+- Nếu nội dung thẻ được viết bằng Tiếng Việt hoặc ngôn ngữ khác, trả về Tag: `0_xac_dinh_ngon_ngu`.
+- Luôn phải chọn 1 trong 2 tag trên.
+""",
     "Chat_hoi_dap": """Bạn là một Chuyên gia Đánh giá Chất lượng Câu hỏi Flashcard Y khoa, được đào tạo theo tiêu chuẩn NBME (National Board of Medical Examiners) và phân loại lỗi viết câu hỏi của Haladyna-Downing-Rodriguez.
 
 NHIỆM VỤ: Đọc nội dung thẻ Anki và PHÂN LOẠI xem đó là CÂU HỎI HOÀN CHỈNH (có thể ôn tập hiệu quả) hay CÂU HỎI KHÔNG ĐẦY ĐỦ (cần chỉnh sửa lại).
