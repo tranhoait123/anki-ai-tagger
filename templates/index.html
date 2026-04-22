@@ -189,7 +189,7 @@
         let backgroundPollTimer = null;
         let lastBackgroundSeq = 0;
         let activeScanMode = 'idle';
-        const BACKGROUND_TERMINAL_LIMIT = 120;
+        const TERMINAL_LOG_LIMIT = 120;
         const specialtyPrompts = JSON.parse(document.getElementById('specialty-data').textContent);
 
         function changeSpecialtyPrompt() {
@@ -237,13 +237,13 @@
             `;
         }
 
-        function trimBackgroundTerminal() {
-            if (activeScanMode !== 'background') {
+        function trimTerminalLog() {
+            if (activeScanMode !== 'background' && activeScanMode !== 'live') {
                 return;
             }
 
             const terminal = document.getElementById('terminal');
-            while (terminal.children.length > BACKGROUND_TERMINAL_LIMIT) {
+            while (terminal.children.length > TERMINAL_LOG_LIMIT) {
                 terminal.removeChild(terminal.firstElementChild);
             }
         }
@@ -270,7 +270,7 @@
             }
 
             terminal.appendChild(logEl);
-            trimBackgroundTerminal();
+            trimTerminalLog();
             terminal.scrollTop = terminal.scrollHeight;
         }
 
@@ -391,33 +391,15 @@
                     return; // Không in log progress làm rối màn hình
                 }
                 
-                const logEl = document.createElement('div');
-                
-                if(data.type === 'success') {
-                    logEl.className = "text-emerald-400 bg-emerald-900/20 p-2 rounded border border-emerald-800/50";
-                    logEl.innerHTML = `[+] ${data.msg}`;
-                } else if(data.type === 'error') {
-                    logEl.className = "text-red-400 bg-red-900/20 p-2 rounded border border-red-800/50";
-                    logEl.innerText = `[-] ${data.msg}`;
-                } else if(data.type === 'warning') {
-                    logEl.className = "text-yellow-400";
-                    logEl.innerText = `[-] ${data.msg}`;
-                } else if(data.type === 'done') {
-                    logEl.className = "text-blue-400 font-bold bg-blue-900/20 p-2 rounded border border-blue-800/50 text-center";
-                    logEl.innerText = `[✨] ${data.msg}`;
-                    
+                renderLogEntry(data);
+
+                if(data.type === 'done') {
                     eventSource.close();
                     eventSource = null; // Clear eventSource
                     
                     resetPrimaryButtons('Quét Xong! Chạy Lại Trận Nữa');
                     stopBtn.classList.add('hidden');
-                } else {
-                    logEl.className = "text-slate-300";
-                    logEl.innerText = `[*] ${data.msg}`;
                 }
-                
-                terminal.appendChild(logEl);
-                terminal.scrollTop = terminal.scrollHeight; // Auto scroll
             };
             
             eventSource.onerror = function() {
