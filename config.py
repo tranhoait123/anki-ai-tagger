@@ -218,8 +218,18 @@ QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
 - Nếu nội dung thẻ mô tả một tình huống bệnh nhân cụ thể như trên, trả về duy nhất Tag: `case_lam_sang`.
 - Nếu nội dung thẻ chỉ là kiến thức lý thuyết thuần túy, định nghĩa, hoặc câu hỏi ngắn không có tình huống bệnh nhân, BẮT BUỘC trả về Tag: `0_xac_dinh_case`.
 """,
-    "Ngon_ngu": """Bạn là một Chuyên gia ngôn ngữ học Y khoa.
-NHIỆM VỤ: Phân tích nội dung thẻ Anki và xác định xem ngôn ngữ chính được sử dụng để viết câu hỏi/kiến thức y khoa đó là Tiếng Anh hay ngôn ngữ khác.
+    "Ngon_ngu": """Bạn là một Chuyên gia Ngôn ngữ học Y khoa (Senior Medical Linguist), chuyên trách phân loại tài liệu cho các hệ thống Học máy Y tế toàn cầu.
+
+NHIỆM VỤ: Phân tích nội dung thẻ Anki và xác định ngôn ngữ GỐC/CHÍNH của toàn bộ câu hỏi/kiến thức đó.
+
+TIÊU CHUẨN ĐÁNH GIÁ (DỰA TRÊN Ý KIẾN CHUYÊN GIA):
+1. Dấu hiệu Tiếng Anh Y khoa (English):
+   - Sử dụng các cấu trúc câu hỏi chuẩn (Ví dụ: "Which of the following...", "What is the most likely...", "A ...-year-old male presents with...").
+   - Các hư từ (articles), giới từ (prepositions) và liên từ (conjunctions) hoàn toàn bằng tiếng Anh (the, is, for, with, at, under, than...).
+   - Cấu trúc ngữ pháp hoàn chỉnh của Tiếng Anh (không phải chỉ là các từ đơn lẻ).
+2. Phân biệt với Tiếng Việt (Vietnamese):
+   - THẬN TRỌNG: Nhiều thẻ tiếng Việt vẫn sử dụng thuật ngữ y khoa tiếng Anh (Mixed-language). Nếu phần đề đạt, giải thích chính vẫn là Tiếng Việt, BẮT BUỘC coi là Tiếng Việt.
+   - Thẻ Tiếng Anh phải là thẻ mà một người không biết tiếng Việt vẫn có thể đọc hiểu hoàn toàn.
 
 DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:
 - cau_hoi_tieng_anh
@@ -228,9 +238,9 @@ DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:
 QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
 - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ DUY NHẤT MỘT (01) TAG TRONG DANH SÁCH TRÊN.
 - TUYỆT ĐỐI KHÔNG tự ý thêm các tag chuyên khoa hoặc bất kỳ tag nào khác.
-- Nếu nội dung thẻ được viết hoàn toàn hoặc chủ yếu bằng Tiếng Anh (English), trả về Tag: `cau_hoi_tieng_anh`.
-- Nếu nội dung thẻ được viết bằng Tiếng Việt hoặc ngôn ngữ khác, trả về Tag: `0_xac_dinh_ngon_ngu`.
-- Luôn phải chọn 1 trong 2 tag trên.
+- Nếu nội dung thẻ là CÂU HỎI TIẾNG ANH THUẦN TÚY (hoặc chủ yếu là tiếng Anh), trả về Tag: `cau_hoi_tieng_anh`.
+- Nếu nội dung thẻ là TIẾNG VIỆT (kể cả có trộn thuật ngữ tiếng Anh), trả về Tag: `0_xac_dinh_ngon_ngu`.
+- Luôn phải chọn 1 trong 2 tag trên, không bao giờ để trống.
 """,
     "Chat_hoi_dap": """Bạn là một Chuyên gia Đánh giá Chất lượng Câu hỏi Flashcard Y khoa, được đào tạo theo tiêu chuẩn NBME (National Board of Medical Examiners) và phân loại lỗi viết câu hỏi của Haladyna-Downing-Rodriguez.
 
