@@ -139,6 +139,11 @@
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         Bắt Đầu Quét Tự Động
                     </button>
+
+                    <button type="button" id="backgroundBtn" onclick="startBackgroundScan()" class="py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 transform transition active:scale-95 flex justify-center items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2M7 9l5-5m0 0l5 5m-5-5v12"></path></svg>
+                        Chạy nền nhẹ
+                    </button>
                     
                     <button type="button" id="stopBtn" onclick="stopScan()" class="hidden py-3 px-6 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-lg shadow-lg shadow-red-500/30 transform transition active:scale-95 flex justify-center items-center gap-2">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -181,6 +186,10 @@
 
     <script>
         let eventSource = null;
+        let backgroundPollTimer = null;
+        let lastBackgroundSeq = 0;
+        let activeScanMode = 'idle';
+        const BACKGROUND_TERMINAL_LIMIT = 120;
         const specialtyPrompts = JSON.parse(document.getElementById('specialty-data').textContent);
 
         function changeSpecialtyPrompt() {
@@ -196,9 +205,99 @@
             }
         }
 
+        function getScanPayload() {
+            return {
+                api_keys: document.getElementById('api_keys').value,
+                model: document.getElementById('model').value,
+                deck: document.getElementById('deck').value,
+                source_tag: document.getElementById('source_tag').value,
+                exclude: document.getElementById('exclude').value,
+                system_prompt: document.getElementById('system_prompt').value,
+                limit: document.getElementById('limit').value,
+                batch_size: document.getElementById('batch_size').value
+            };
+        }
+
+        function resetPrimaryButtons(startLabel = 'Bắt Đầu Quét Tự Động') {
+            const startBtn = document.getElementById('startBtn');
+            const backgroundBtn = document.getElementById('backgroundBtn');
+
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            startBtn.innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                ${startLabel}
+            `;
+
+            backgroundBtn.disabled = false;
+            backgroundBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            backgroundBtn.innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2M7 9l5-5m0 0l5 5m-5-5v12"></path></svg>
+                Chạy nền nhẹ
+            `;
+        }
+
+        function trimBackgroundTerminal() {
+            if (activeScanMode !== 'background') {
+                return;
+            }
+
+            const terminal = document.getElementById('terminal');
+            while (terminal.children.length > BACKGROUND_TERMINAL_LIMIT) {
+                terminal.removeChild(terminal.firstElementChild);
+            }
+        }
+
+        function renderLogEntry(data) {
+            const terminal = document.getElementById('terminal');
+            const logEl = document.createElement('div');
+
+            if(data.type === 'success') {
+                logEl.className = "text-emerald-400 bg-emerald-900/20 p-2 rounded border border-emerald-800/50";
+                logEl.innerHTML = `[+] ${data.msg}`;
+            } else if(data.type === 'error') {
+                logEl.className = "text-red-400 bg-red-900/20 p-2 rounded border border-red-800/50";
+                logEl.innerText = `[-] ${data.msg}`;
+            } else if(data.type === 'warning') {
+                logEl.className = "text-yellow-400";
+                logEl.innerText = `[-] ${data.msg}`;
+            } else if(data.type === 'done') {
+                logEl.className = "text-blue-400 font-bold bg-blue-900/20 p-2 rounded border border-blue-800/50 text-center";
+                logEl.innerText = `[✨] ${data.msg}`;
+            } else {
+                logEl.className = "text-slate-300";
+                logEl.innerHTML = `[*] ${data.msg}`;
+            }
+
+            terminal.appendChild(logEl);
+            trimBackgroundTerminal();
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function updateProgress(current, total) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const safeTotal = Number(total) || 0;
+            const safeCurrent = Number(current) || 0;
+            const pct = safeTotal > 0 ? Math.round((safeCurrent / safeTotal) * 100) : 0;
+
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = pct + '%';
+            progressText.innerText = safeTotal > 0 ? `${safeCurrent} / ${safeTotal}` : 'Đang chuẩn bị...';
+        }
+
+        function stopBackgroundPolling() {
+            if (backgroundPollTimer) {
+                clearInterval(backgroundPollTimer);
+                backgroundPollTimer = null;
+            }
+        }
+
         async function stopScan() {
             const stopBtn = document.getElementById('stopBtn');
             const startBtn = document.getElementById('startBtn');
+            const backgroundBtn = document.getElementById('backgroundBtn');
             const terminal = document.getElementById('terminal');
 
             stopBtn.disabled = true;
@@ -222,12 +321,8 @@
                 terminal.innerHTML += '<div class="text-red-400">[-] Lỗi khi gửi lệnh dừng: ' + error.message + '</div>';
             } finally {
                 // Reset buttons after attempting to stop
-                startBtn.disabled = false;
-                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                startBtn.innerHTML = `
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Bắt Đầu Quét Tự Động
-                `;
+                resetPrimaryButtons();
+                backgroundBtn.disabled = false;
                 stopBtn.classList.add('hidden');
             }
         }
@@ -235,10 +330,14 @@
         async function startScan() {
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
+            const backgroundBtn = document.getElementById('backgroundBtn');
             const terminal = document.getElementById('terminal'); // Renamed from 'logs' to 'terminal'
             const progressContainer = document.getElementById('progressContainer'); // Renamed from 'progress-container'
             const progressBar = document.getElementById('progressBar'); // Renamed from 'progress-bar'
             const progressText = document.getElementById('progressText'); // Renamed from 'progress-text'
+
+            activeScanMode = 'live';
+            stopBackgroundPolling();
             
             // Reset UI
             terminal.innerHTML = '';
@@ -250,6 +349,8 @@
             startBtn.disabled = true;
             startBtn.classList.add('opacity-50', 'cursor-not-allowed');
             startBtn.innerHTML = '<div class="spinner"></div> Đang chuẫn bị API...';
+            backgroundBtn.disabled = true;
+            backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
             
             stopBtn.classList.remove('hidden');
             stopBtn.disabled = false;
@@ -260,16 +361,7 @@
 
             terminal.innerHTML = '<div class="text-blue-400">[*] Đang lưu cấu hình và gửi lệnh khởi chạy...</div>';
 
-            const payload = {
-                api_keys: document.getElementById('api_keys').value,
-                model: document.getElementById('model').value,
-                deck: document.getElementById('deck').value,
-                source_tag: document.getElementById('source_tag').value,
-                exclude: document.getElementById('exclude').value,
-                system_prompt: document.getElementById('system_prompt').value,
-                limit: document.getElementById('limit').value,
-                batch_size: document.getElementById('batch_size').value
-            };
+            const payload = getScanPayload();
 
             try {
                 await fetch('/save_config', {
@@ -279,12 +371,7 @@
                 });
             } catch (error) {
                 terminal.innerHTML += `<div class="text-red-400">[-] Lỗi khi lưu cấu hình: ${error.message}</div>`;
-                startBtn.disabled = false;
-                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                startBtn.innerHTML = `
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Thử Lại
-                `;
+                resetPrimaryButtons('Thử Lại');
                 stopBtn.classList.add('hidden');
                 return;
             }
@@ -300,9 +387,7 @@
                 const data = JSON.parse(event.data);
                 
                 if(data.type === 'progress') {
-                    const pct = Math.round((data.current / data.total) * 100);
-                    progressBar.style.width = pct + '%';
-                    progressText.innerText = `${data.current} / ${data.total}`;
+                    updateProgress(data.current, data.total);
                     return; // Không in log progress làm rối màn hình
                 }
                 
@@ -324,12 +409,7 @@
                     eventSource.close();
                     eventSource = null; // Clear eventSource
                     
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    startBtn.innerHTML = `
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Quét Xong! Chạy Lại Trận Nữa
-                    `;
+                    resetPrimaryButtons('Quét Xong! Chạy Lại Trận Nữa');
                     stopBtn.classList.add('hidden');
                 } else {
                     logEl.className = "text-slate-300";
@@ -345,16 +425,131 @@
                     eventSource.close();
                     eventSource = null;
                 }
-                startBtn.disabled = false;
-                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                startBtn.innerHTML = `
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Thử Lại
-                `;
+                resetPrimaryButtons('Thử Lại');
                 stopBtn.classList.add('hidden');
                 terminal.innerHTML += '<div class="text-red-500">[-] Đóng Server hoặc Mất Kết Nối Cục Bộ.</div>';
             };
         }
+
+        async function startBackgroundScan() {
+            const startBtn = document.getElementById('startBtn');
+            const backgroundBtn = document.getElementById('backgroundBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const terminal = document.getElementById('terminal');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            activeScanMode = 'background';
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            stopBackgroundPolling();
+            lastBackgroundSeq = 0;
+
+            terminal.innerHTML = '<div class="text-emerald-400">[*] Đang lưu cấu hình và khởi động job nền...</div>';
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressText.innerText = 'Đang chuẩn bị...';
+
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            backgroundBtn.disabled = true;
+            backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            backgroundBtn.innerHTML = '<div class="spinner border-t-emerald-200"></div> Đang chạy nền...';
+
+            stopBtn.classList.remove('hidden');
+            stopBtn.disabled = false;
+            stopBtn.innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Dừng Lại
+            `;
+
+            try {
+                const resp = await fetch('/start_background_scan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(getScanPayload())
+                });
+                const data = await resp.json();
+
+                if (data.status === 'already_running') {
+                    terminal.innerHTML = '<div class="text-yellow-400">[*] Đang có job nền chạy sẵn. Đã nối lại terminal hiện tại...</div>';
+                } else {
+                    terminal.innerHTML = '<div class="text-emerald-400">[*] Job nền đã bắt đầu. Terminal sẽ tự cập nhật nhẹ mỗi 1.5 giây.</div>';
+                }
+
+                pollBackgroundStatus();
+                backgroundPollTimer = setInterval(pollBackgroundStatus, 1500);
+            } catch (error) {
+                terminal.innerHTML += `<div class="text-red-400">[-] Lỗi khi khởi động job nền: ${error.message}</div>`;
+                resetPrimaryButtons('Thử Lại');
+                stopBtn.classList.add('hidden');
+            }
+        }
+
+        async function pollBackgroundStatus() {
+            const stopBtn = document.getElementById('stopBtn');
+            const terminal = document.getElementById('terminal');
+
+            try {
+                const resp = await fetch(`/background_status?since=${lastBackgroundSeq}`);
+                const data = await resp.json();
+
+                if (data.progress) {
+                    updateProgress(data.progress.current, data.progress.total);
+                }
+
+                for (const log of data.logs || []) {
+                    if (log.seq > lastBackgroundSeq) {
+                        lastBackgroundSeq = log.seq;
+                    }
+                    renderLogEntry(log);
+                }
+
+                if (data.status === 'running' || data.status === 'stopping') {
+                    activeScanMode = 'background';
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('startBtn').classList.add('opacity-50', 'cursor-not-allowed');
+                    const backgroundBtn = document.getElementById('backgroundBtn');
+                    backgroundBtn.disabled = true;
+                    backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    backgroundBtn.innerHTML = '<div class="spinner border-t-emerald-200"></div> Đang chạy nền...';
+                    stopBtn.classList.remove('hidden');
+                    stopBtn.disabled = data.status === 'stopping';
+                    return;
+                }
+
+                if (activeScanMode === 'background') {
+                    stopBackgroundPolling();
+                    resetPrimaryButtons(data.status === 'done' ? 'Quét Xong! Chạy Lại Trận Nữa' : 'Thử Lại');
+                    stopBtn.classList.add('hidden');
+                    activeScanMode = 'idle';
+                }
+            } catch (error) {
+                stopBackgroundPolling();
+                terminal.innerHTML += `<div class="text-red-500">[-] Mất kết nối trạng thái job nền: ${error.message}</div>`;
+                resetPrimaryButtons('Thử Lại');
+                stopBtn.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            try {
+                const resp = await fetch('/background_status?since=0');
+                const data = await resp.json();
+                if (data.status === 'running' || data.status === 'stopping') {
+                    activeScanMode = 'background';
+                    lastBackgroundSeq = 0;
+                    document.getElementById('terminal').innerHTML = '<div class="text-emerald-400">[*] Đã nối lại job nền đang chạy...</div>';
+                    pollBackgroundStatus();
+                    backgroundPollTimer = setInterval(pollBackgroundStatus, 1500);
+                }
+            } catch (error) {
+                console.warn('Không thể kiểm tra job nền:', error);
+            }
+        });
     </script>
 </body>
 </html>
