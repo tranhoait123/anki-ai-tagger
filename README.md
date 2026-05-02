@@ -1,4 +1,4 @@
-# Anki AI Tagger V2.1.0
+# Anki AI Tagger V2.2.0
 
 Công cụ tự động phân tích và gắn thẻ (Tag) cho các Notes trong Anki dựa trên trí tuệ nhân tạo (Google Gemini API). Hệ thống này hoạt động theo mô hình Zero-Shot Classifier: AI tự đọc nội dung thẻ và tag gốc để suy luận ra hệ thống Tag y khoa phức tạp hoàn toàn tự động chỉ với 1 lần quét.
 
@@ -33,27 +33,28 @@ python web_app.py
 
 4. Trình duyệt sẽ tự động mở trang Dashboard trực quan.
 
-Hệ thống này giúp bạn giải quyết tình trạng thẻ trùng lặp một cách thông minh bằng cách so sánh nội dung và giữ lại thẻ có lịch sử ôn tập tốt nhất.
+## Chế độ xử lý
 
-## Công cụ xoá trùng lặp (CLI - Chạy nền)
+- **Quét tag chuyên khoa**: chọn một preset tag như Nhi khoa, Nội khoa, Giải phẫu rồi chạy.
+- **Lọc thẻ**: chọn preset lọc như case lâm sàng, câu hỏi tiếng Anh, câu hỏi không đầy đủ.
+- **Trùng lặp review**: app chọn cụm thẻ gần giống local rồi AI chỉ gắn tag review như `AI_DUP_REVIEW`, `AI_DUP_KEEP_CANDIDATE`, `AI_DUP_DELETE_CANDIDATE`, `AI_DUP_NEAR_KEEP_SEPARATE`; không xoá hoặc suspend thẻ.
 
-Nếu giao diện Web load chậm do dữ liệu quá lớn, bạn có thể chạy trực tiếp script Python để giải quyết thẻ trùng lặp:
+## Preset tag/lọc
 
-```bash
-# Bật môi trường ảo (nếu chưa bật)
-source venv/bin/activate
+Các bộ tag và rule lọc nằm trong thư mục `presets/*.yaml`, không còn nhét trực tiếp trong `config.py`.
 
-# 1. Xem thử các thẻ trùng (không xoá gì cả)
-python deduplicate.py --scan-all --dry-run
+Mỗi preset có các phần chính:
 
-# 2. Xoá trùng lặp tự động (chọn thẻ tốt nhất để giữ lại)
-python deduplicate.py --scan-all
+- `kind`: `tagging`, `filter`, hoặc `duplicate_review`.
+- `allowed_tags`: danh sách tag AI được phép trả về.
+- `default_tag`: tag fallback khi không chắc chắn.
+- `instructions`: rule/hướng dẫn phân loại.
+- `skip_tags`: thẻ đã có các tag này sẽ bị bỏ qua.
+- `fields_to_read`: field Anki cần gửi AI; để trống nghĩa là đọc tất cả field không bị exclude.
 
-# Các tuỳ chọn khác:
-# --field Front      : So sánh theo field cụ thể (Mặc định: Front)
-# --fuzzy            : Tìm thẻ gần giống nhau (độ chính xác 90%)
-# --tag duplicate    : Chỉ tìm thẻ có tag cụ thể (Mặc định: duplicate)
-```
+Trong Web UI, dùng panel **Quản lý Preset** để duplicate preset mặc định, sửa danh sách tag/rule, xem preview prompt và lưu thành preset mới.
+
+Ứng dụng chỉ gắn tag trong Anki. Các thao tác xoá/suspend thẻ không còn nằm trong app để tránh mất dữ liệu ngoài ý muốn.
 
 ## Chú ý Bảo mật và Chi phí
 

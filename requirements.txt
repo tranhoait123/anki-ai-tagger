@@ -2,3 +2,4 @@ requests
 google-generativeai
 pydantic
 flask
+PyYAML

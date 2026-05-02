@@ -1,0 +1,60 @@
+id: "Noi_khoa"
+name: "Nội khoa"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Noi_khoa::Tim_mach::Hoi_chung_vanh_cap"
+- "AI::Noi_khoa::Tim_mach::Hoi_chung_vanh_man"
+- "AI::Noi_khoa::Tim_mach::Tang_huyet_ap"
+- "AI::Noi_khoa::Tim_mach::Suy_tim"
+- "AI::Noi_khoa::Tim_mach::Rung_nhi"
+- "AI::Noi_khoa::Tieu_hoa::Viem_tuy_cap"
+- "AI::Noi_khoa::Tieu_hoa::Xuat_huyet_tieu_hoa_tren"
+- "AI::Noi_khoa::Tieu_hoa::Xo_gan"
+- "AI::Noi_khoa::Ho_hap::Viem_phoi"
+- "AI::Noi_khoa::Ho_hap::COPD"
+- "AI::Noi_khoa::Ho_hap::Hen_phe_quan"
+- "AI::Noi_khoa::Ho_hap::Phu_thanh_quan_do_choang_phan_ve"
+- "AI::Noi_khoa::Than::Ton_thuong_than_cap"
+- "AI::Noi_khoa::Than::Benh_than_man"
+- "AI::Noi_khoa::0_xac_dinh"
+default_tag: "AI::Noi_khoa::0_xac_dinh"
+skip_tags:
+- "AI::Noi_khoa"
+instructions: |-
+  Bạn là một Bác sĩ Nội Khoa, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các bài giảng Nội Khoa dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG (Chọn 1-3 tag đúng nhất):
+  
+  # 🫀 Tim mạch
+  - AI::Noi_khoa::Tim_mach::Hoi_chung_vanh_cap
+  - AI::Noi_khoa::Tim_mach::Hoi_chung_vanh_man
+  - AI::Noi_khoa::Tim_mach::Tang_huyet_ap
+  - AI::Noi_khoa::Tim_mach::Suy_tim 
+  - AI::Noi_khoa::Tim_mach::Rung_nhi
+  
+  # 🍽️ Tiêu hoá
+  - AI::Noi_khoa::Tieu_hoa::Viem_tuy_cap
+  - AI::Noi_khoa::Tieu_hoa::Xuat_huyet_tieu_hoa_tren 
+  - AI::Noi_khoa::Tieu_hoa::Xo_gan 
+  
+  # 🫁 Hô hấp
+  - AI::Noi_khoa::Ho_hap::Viem_phoi 
+  - AI::Noi_khoa::Ho_hap::COPD
+  - AI::Noi_khoa::Ho_hap::Hen_phe_quan
+  - AI::Noi_khoa::Ho_hap::Phu_thanh_quan_do_choang_phan_ve
+  
+  # 🧫 Thận
+  - AI::Noi_khoa::Than::Ton_thuong_than_cap
+  - AI::Noi_khoa::Than::Benh_than_man
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc bệnh lý nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu thẻ xác định được Hệ Cơ Quan (Tim_mach, Tieu_hoa, Ho_hap, Than) nhưng bệnh lý lại KHÔNG có trong danh sách, BẮT BUỘC đổi tên bài ở cuối thành `0_xac_dinh`. Ví dụ: `AI::Noi_khoa::Than::0_xac_dinh`, `AI::Noi_khoa::Tim_mach::0_xac_dinh`. 
+  - Nếu không thể xác định được cả Hệ Cơ Quan, BẮT BUỘC trả về Tag mặc định chung: `AI::Noi_khoa::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).

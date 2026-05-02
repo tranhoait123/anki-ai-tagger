@@ -2,12 +2,19 @@ import os
 import json
 import logging
 import webbrowser
-import requests as req_lib
 from threading import Lock, Thread, Timer
 from flask import Flask, render_template, request, jsonify, Response
 import config
 from scanner import run_scan_generator
 from anki_client import get_deck_names, get_tags
+from preset_manager import (
+    PresetError,
+    build_system_prompt,
+    delete_preset,
+    list_presets,
+    load_preset,
+    save_preset,
+)
 
 # Tắt log mặc định của Flask cho gọn Terminal
 log = logging.getLogger('werkzeug')
@@ -17,6 +24,7 @@ app = Flask(__name__)
 
 BACKGROUND_LOG_LIMIT = 500
 background_lock = Lock()
+scan_lock = Lock()
 background_job = {
     "id": 0,
     "status": "idle",
@@ -28,36 +36,69 @@ background_job = {
 }
 
 
+def _parse_positive_int(raw_value, field_label, allow_blank=False, default=None):
+    raw_text = "" if raw_value is None else str(raw_value).strip()
+    if raw_text == "":
+        if allow_blank:
+            return default
+        if default is not None:
+            return default
+        raise ValueError(f"{field_label} không được để trống.")
+
+    try:
+        value = int(raw_text)
+    except ValueError as exc:
+        raise ValueError(f"{field_label} phải là số nguyên hợp lệ.") from exc
+
+    if value <= 0:
+        raise ValueError(f"{field_label} phải lớn hơn 0. Để trống nếu muốn chạy toàn bộ.")
+
+    return value
+
+
 def apply_config_from_payload(data):
     """Cập nhật config trên RAM từ dữ liệu form."""
     keys_str = data.get("api_keys", "")
+    gemini_api_keys = getattr(config, 'GEMINI_API_KEYS', [])
     if keys_str:
-        config.GEMINI_API_KEYS = [k.strip() for k in keys_str.split(",") if k.strip()]
+        gemini_api_keys = [k.strip() for k in keys_str.split(",") if k.strip()]
+
+    exclude_str = data.get("exclude", "")
+    excluded_fields = [x.strip() for x in exclude_str.split(",") if x.strip()]
+
+    preset_id = data.get("preset_id") or getattr(config, "CURRENT_PRESET_ID", "Nhi_khoa")
+    preset = load_preset(preset_id)
+
+    batch_size = data.get("batch_size")
+    parsed_batch_size = _parse_positive_int(
+        batch_size,
+        "Batch Size",
+        allow_blank=False,
+        default=preset.batch_size or getattr(config, 'BATCH_SIZE', 500)
+    )
+
+    limit = data.get("limit")
+    parsed_limit = _parse_positive_int(limit, "Giới Hạn Tổng", allow_blank=True, default=None)
+
+    config.GEMINI_API_KEYS = gemini_api_keys
     config.CURRENT_KEY_INDEX = 0
     config.TARGET_DECK = data.get("deck", config.TARGET_DECK)
     config.SOURCE_FILTER_TAG = data.get("source_tag", "")
     config.CURRENT_MODEL = data.get("model", getattr(config, 'CURRENT_MODEL', 'gemini-3.1-flash-lite-preview'))
-
-    exclude_str = data.get("exclude", "")
-    config.FIELDS_TO_EXCLUDE = [x.strip() for x in exclude_str.split(",") if x.strip()]
-
-    config.SYSTEM_PROMPT = data.get("system_prompt", getattr(config, 'SYSTEM_PROMPT', ''))
-
-    batch_size = data.get("batch_size")
-    if batch_size:
-        try:
-            config.BATCH_SIZE = int(batch_size)
-        except ValueError:
-            config.BATCH_SIZE = 50
-
-    limit = data.get("limit")
-    if limit is not None and str(limit).strip() != "":
-        try:
-            config.MAX_CARDS_PER_RUN = int(limit)
-        except ValueError:
-            config.MAX_CARDS_PER_RUN = None
-    else:
-        config.MAX_CARDS_PER_RUN = None
+    config.FIELDS_TO_EXCLUDE = excluded_fields
+    config.CURRENT_PRESET_ID = preset.id
+    config.CURRENT_PRESET = preset.to_dict(include_prompt=False)
+    config.SYSTEM_PROMPT_OVERRIDE = data.get("system_prompt_override", "") or ""
+    config.SYSTEM_PROMPT = config.SYSTEM_PROMPT_OVERRIDE.strip() or build_system_prompt(preset)
+    config.BATCH_SIZE = parsed_batch_size
+    requested_scan_mode = data.get("card_selection_mode") or preset.scan_mode or "sequential"
+    if preset.kind == "duplicate_review":
+        requested_scan_mode = "similar"
+    config.CARD_SELECTION_MODE = requested_scan_mode
+    fields_for_compare = data.get("similar_field_mode") or ", ".join(preset.fields_to_read) or "Ques, A, B, C, D"
+    config.SIMILAR_FIELD_MODE = fields_for_compare
+    config.SIMILAR_SEED_KEYWORD = data.get("similar_seed_keyword", "") or ""
+    config.MAX_CARDS_PER_RUN = parsed_limit
 
 
 def append_background_log(status_dict):
@@ -77,7 +118,15 @@ def append_background_log(status_dict):
                 background_job["logs"] = background_job["logs"][-BACKGROUND_LOG_LIMIT:]
 
 
-def background_scan_worker(job_id):
+def background_scan_worker(job_id, lock_acquired=False):
+    if not lock_acquired and not scan_lock.acquire(blocking=False):
+        append_background_log({"type": "error", "msg": "Đang có lượt quét khác chạy. Job nền không được khởi động."})
+        with background_lock:
+            if background_job["id"] == job_id:
+                background_job["status"] = "error"
+                background_job["message"] = "Đang có lượt quét khác chạy."
+        return
+
     try:
         append_background_log({"type": "info", "msg": "Đã khởi động job nền. Bạn có thể refresh trang, terminal vẫn nối lại được."})
         for status_dict in run_scan_generator():
@@ -103,6 +152,8 @@ def background_scan_worker(job_id):
             if background_job["id"] == job_id:
                 background_job["status"] = "error"
                 background_job["message"] = str(e)
+    finally:
+        scan_lock.release()
 
 @app.route("/")
 def index():
@@ -115,6 +166,18 @@ def index():
         available_tags = []
         print(f"Lỗi tải danh sách Anki: {e}")
         
+    presets = [preset.to_dict(include_prompt=True) for preset in list_presets()]
+    current_preset_id = getattr(config, "CURRENT_PRESET_ID", "Nhi_khoa")
+    try:
+        current_preset = load_preset(current_preset_id)
+    except PresetError:
+        current_preset = presets[0] if presets else None
+
+    if current_preset and not getattr(config, "SYSTEM_PROMPT", ""):
+        if hasattr(current_preset, "to_dict"):
+            config.CURRENT_PRESET = current_preset.to_dict(include_prompt=False)
+            config.SYSTEM_PROMPT = build_system_prompt(current_preset)
+
     return render_template(
         "index.html",
         api_keys=", ".join(getattr(config, 'GEMINI_API_KEYS', [])),
@@ -123,38 +186,74 @@ def index():
         available_decks=available_decks,
         available_tags=available_tags,
         exclude=", ".join(getattr(config, 'FIELDS_TO_EXCLUDE', [])),
-        system_prompt=getattr(config, 'SYSTEM_PROMPT', ''),
-        specialty_prompts=getattr(config, 'SPECIALTY_PROMPTS', {}),
+        system_prompt_override=getattr(config, 'SYSTEM_PROMPT_OVERRIDE', ''),
+        presets=presets,
+        current_preset_id=current_preset_id,
         available_models=getattr(config, 'AVAILABLE_MODELS', []),
         current_model=getattr(config, 'CURRENT_MODEL', 'gemini-3.1-flash-lite-preview'),
         max_cards=getattr(config, 'MAX_CARDS_PER_RUN', '') if getattr(config, 'MAX_CARDS_PER_RUN', None) is not None else '',
-        batch_size=getattr(config, 'BATCH_SIZE', 50)
+        batch_size=getattr(config, 'BATCH_SIZE', 500),
+        card_selection_mode=getattr(config, 'CARD_SELECTION_MODE', 'sequential'),
+        similar_field_mode=getattr(config, 'SIMILAR_FIELD_MODE', 'Ques, A, B, C, D'),
+        similar_seed_keyword=getattr(config, 'SIMILAR_SEED_KEYWORD', '')
     )
+
+
+@app.route("/api/presets")
+def api_list_presets():
+    return jsonify({
+        "presets": [preset.to_dict(include_prompt=False) for preset in list_presets()]
+    })
+
+
+@app.route("/api/presets/<preset_id>")
+def api_get_preset(preset_id):
+    try:
+        preset = load_preset(preset_id)
+    except PresetError as e:
+        return jsonify({"status": "error", "message": str(e)}), 404
+    return jsonify(preset.to_dict(include_prompt=True))
+
+
+@app.route("/api/presets", methods=["POST"])
+def api_create_preset():
+    try:
+        preset = save_preset(request.json or {})
+    except PresetError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    return jsonify({"status": "success", "preset": preset.to_dict(include_prompt=True)}), 201
+
+
+@app.route("/api/presets/<preset_id>", methods=["PUT"])
+def api_update_preset(preset_id):
+    try:
+        preset = save_preset(request.json or {}, preset_id=preset_id)
+    except PresetError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    return jsonify({"status": "success", "preset": preset.to_dict(include_prompt=True)})
+
+
+@app.route("/api/presets/<preset_id>", methods=["DELETE"])
+def api_delete_preset(preset_id):
+    try:
+        delete_preset(preset_id)
+    except PresetError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    return jsonify({"status": "success"})
 
 @app.route("/save_config", methods=["POST"])
 def save_config():
-    apply_config_from_payload(request.json or {})
-    return jsonify({"status": "success"})
+    if scan_lock.locked():
+        return jsonify({
+            "status": "busy",
+            "message": "Đang có lượt quét chạy. Không đổi cấu hình giữa chừng."
+        }), 409
 
-@app.route("/duplicate-resolver")
-def duplicate_resolver():
-    return render_template("duplicate_resolver.html")
-
-@app.route("/anki-proxy", methods=["POST"])
-def anki_proxy():
-    """Proxy AnkiConnect requests to avoid CORS issues in browser."""
     try:
-        payload = request.get_json(force=True)
-        resp = req_lib.post(
-            'http://127.0.0.1:8765',
-            json=payload,
-            timeout=30
-        )
-        return jsonify(resp.json())
-    except req_lib.exceptions.ConnectionError:
-        return jsonify({"result": None, "error": "Không thể kết nối AnkiConnect. Hãy mở Anki và bật addon AnkiConnect."})
-    except Exception as e:
-        return jsonify({"result": None, "error": str(e)})
+        apply_config_from_payload(request.json or {})
+    except (PresetError, ValueError) as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    return jsonify({"status": "success"})
 
 @app.route("/stop_scan", methods=["POST"])
 def stop_scan():
@@ -168,7 +267,11 @@ def stop_scan():
 
 @app.route("/start_background_scan", methods=["POST"])
 def start_background_scan():
-    apply_config_from_payload(request.json or {})
+    try:
+        payload = request.json or {}
+        apply_config_from_payload(payload)
+    except (PresetError, ValueError) as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     with background_lock:
         if background_job["status"] in ("running", "stopping"):
@@ -178,6 +281,14 @@ def start_background_scan():
                 "message": "Đang có job nền chạy. Terminal sẽ nối lại job hiện tại."
             })
 
+        if scan_lock.locked():
+            return jsonify({
+                "status": "already_running",
+                "job_id": background_job["id"],
+                "message": "Đang có lượt quét khác chạy. Terminal sẽ nối lại job hiện tại."
+            }), 409
+
+        scan_lock.acquire()
         config.STOP_SCAN = False
         background_job["id"] += 1
         background_job["status"] = "running"
@@ -187,7 +298,7 @@ def start_background_scan():
         background_job["message"] = "Job nền đang chạy."
         job_id = background_job["id"]
 
-        worker = Thread(target=background_scan_worker, args=(job_id,), daemon=True)
+        worker = Thread(target=background_scan_worker, args=(job_id, True), daemon=True)
         background_job["thread"] = worker
         worker.start()
 
@@ -214,11 +325,19 @@ def background_status():
 
 @app.route("/stream_scan")
 def stream_scan():
-    config.STOP_SCAN = False # Reset cờ mỗi khi quét mới
     def generate():
-        for status_dict in run_scan_generator():
-            # Format SSE (Server-Sent Events)
+        if not scan_lock.acquire(blocking=False):
+            status_dict = {"type": "error", "msg": "Đang có lượt quét khác chạy. Vui lòng chờ lượt hiện tại kết thúc."}
             yield f"data: {json.dumps(status_dict)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'msg': 'Không khởi động lượt quét mới vì app đang bận.'})}\n\n"
+            return
+
+        config.STOP_SCAN = False
+        try:
+            for status_dict in run_scan_generator():
+                yield f"data: {json.dumps(status_dict)}\n\n"
+        finally:
+            scan_lock.release()
             
     return Response(generate(), mimetype="text/event-stream")
 

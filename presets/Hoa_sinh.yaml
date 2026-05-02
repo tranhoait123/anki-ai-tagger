@@ -1,0 +1,39 @@
+id: "Hoa_sinh"
+name: "Hóa sinh"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Hoa_sinh::Chu_trinh_acid_citric_phosphoryl_hoa_oxi_hoa"
+- "AI::Hoa_sinh::Chuyen_hoa_glucid"
+- "AI::Hoa_sinh::Chuyen_hoa_lipid"
+- "AI::Hoa_sinh::Chuyen_hoa_protid"
+- "AI::Hoa_sinh::Chuyen_hoa_hemoglobin"
+- "AI::Hoa_sinh::Chuyen_hoa_nucleotid"
+- "AI::Hoa_sinh::Hoa_sinh_gan_mat"
+- "AI::Hoa_sinh::Hoa_sinh_than"
+- "AI::Hoa_sinh::0_xac_dinh"
+default_tag: "AI::Hoa_sinh::0_xac_dinh"
+skip_tags:
+- "AI::Hoa_sinh"
+instructions: |-
+  Bạn là một Chuyên gia Hóa sinh y khoa, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các bài học Hóa sinh dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:
+  - AI::Hoa_sinh::Chu_trinh_acid_citric_phosphoryl_hoa_oxi_hoa
+  - AI::Hoa_sinh::Chuyen_hoa_glucid
+  - AI::Hoa_sinh::Chuyen_hoa_lipid
+  - AI::Hoa_sinh::Chuyen_hoa_protid
+  - AI::Hoa_sinh::Chuyen_hoa_hemoglobin
+  - AI::Hoa_sinh::Chuyen_hoa_nucleotid
+  - AI::Hoa_sinh::Hoa_sinh_gan_mat
+  - AI::Hoa_sinh::Hoa_sinh_than
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc chủ đề nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu không thể xác định được chủ đề, BẮT BUỘC trả về Tag mặc định chung: `AI::Hoa_sinh::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).

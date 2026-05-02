@@ -1,274 +1,512 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anki AI Tagger V2.0</title>
-    <!-- Tailwind CSS (Vibrant modern styling) -->
+    <title>Anki AI Tagger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
-        .glass-panel { background: rgba(30,30,40,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        
-        /* Loading Animation */
-        .spinner {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { background: #111827; color: #f8fafc; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .panel { background: #1f2937; border: 1px solid #334155; box-shadow: 0 18px 45px rgba(0,0,0,0.22); }
+        .input { width: 100%; background: #0f172a; border: 1px solid #475569; border-radius: 8px; padding: 10px 12px; outline: none; color: #f8fafc; }
+        .input:focus { border-color: #38bdf8; }
+        .label { display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px; }
+        .hint { color: #94a3b8; font-size: 12px; line-height: 1.45; }
+        .btn { border-radius: 8px; padding: 10px 14px; font-weight: 800; transition: opacity .15s ease, transform .15s ease; }
+        .btn:active { transform: scale(.98); }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-secondary { background: #334155; color: #f8fafc; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-ghost { background: transparent; color: #cbd5e1; border: 1px solid #475569; }
+        .spinner { border: 3px solid rgba(255,255,255,.18); border-top: 3px solid white; border-radius: 999px; width: 18px; height: 18px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center py-10 px-4 space-y-8 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] overflow-x-hidden">
-
-    <!-- Header -->
-    <header class="text-center space-y-4 animate-fade-in-down">
-        <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 drop-shadow-lg">
-            Anki AI Tagger
-        </h1>
-        <p class="text-slate-400 text-lg">Hệ thống phân tích và gán nhãn Flashcard thông minh với Gemini AI</p>
-        <!-- Tool navigation -->
-        <div class="flex justify-center gap-3 pt-1">
-            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-300 text-sm font-medium">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-                AI Tagger (Trang này)
-            </span>
-            <a href="/duplicate-resolver" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm font-medium hover:bg-indigo-600/30 hover:text-indigo-200 transition-all duration-200 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                Duplicate Resolver ✨
-            </a>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        
-        <!-- Left: Configuration Form -->
-        <section class="glass-panel p-6 rounded-2xl shadow-2xl transition hover:shadow-cyan-500/10 duration-500">
-            <h2 class="text-2xl font-semibold mb-6 text-cyan-400 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                Thiết Kế Cấu Hình
-            </h2>
-            <form id="configForm" class="space-y-4 text-sm text-slate-300">
-                <div class="space-y-1">
-                    <label class="block font-medium text-slate-400">Google Gemini API Keys <span class="text-xs text-slate-500">(Nhiều Key thì cách nhau bằng dấu Phẩy)</span></label>
-                    <input type="password" id="api_keys" value="{{ api_keys }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner">
+<body class="min-h-screen px-4 py-6">
+    <main class="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
+        <section class="space-y-5">
+            <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 class="text-3xl font-black tracking-tight">Anki AI Tagger</h1>
+                    <p class="text-slate-400">Chọn việc cần làm, chọn preset, rồi chạy. Tag/rule mới nằm trong preset YAML.</p>
                 </div>
-                
-                <div class="space-y-1">
-                    <label class="block font-medium text-slate-400">Chọn Model Gemini</label>
-                    <select id="model" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-emerald-500 transition shadow-inner appearance-none cursor-pointer">
-                        {% for m in available_models %}
-                        <option value="{{ m }}" {% if m == current_model %}selected{% endif %}>{{ m }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm font-bold text-sky-200">
+                    Preset-first workflow
                 </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-400">Chọn Deck Quét</label>
-                        <select id="deck" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner appearance-none cursor-pointer">
+            </header>
+
+            <section class="panel rounded-lg p-5">
+                <h2 class="mb-4 text-xl font-black text-sky-300">1. Chọn việc cần làm</h2>
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div>
+                        <label class="label">Tác vụ</label>
+                        <select id="task_kind" class="input" onchange="filterPresetOptions()">
+                            <option value="tagging">Quét tag chuyên khoa</option>
+                            <option value="filter">Lọc thẻ</option>
+                            <option value="duplicate_review">Tìm trùng/gần trùng</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Preset</label>
+                        <select id="preset_id" class="input" onchange="applySelectedPreset()"></select>
+                    </div>
+                </div>
+                <div id="presetSummary" class="mt-4 rounded-lg border border-slate-600 bg-slate-900/60 p-4 text-sm text-slate-200"></div>
+            </section>
+
+            <section class="panel rounded-lg p-5">
+                <h2 class="mb-4 text-xl font-black text-emerald-300">2. Chọn nguồn thẻ</h2>
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div>
+                        <label class="label">Deck</label>
+                        <select id="deck" class="input">
                             {% for d in available_decks %}
                             <option value="{{ d }}" {% if d == deck %}selected{% endif %}>{{ d }}</option>
                             {% endfor %}
-                            <option value="">-- Quay lại gõ thủ công --</option>
+                            <option value="">-- Gõ thủ công trong Anki nếu cần --</option>
                         </select>
                     </div>
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-400">Khu Trú Theo Tag <i>(Tuỳ chọn)</i></label>
-                        <select id="source_tag" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner appearance-none cursor-pointer">
-                            <option value="">-- Toàn bộ Deck --</option>
+                    <div>
+                        <label class="label">Tag nguồn</label>
+                        <select id="source_tag" class="input">
+                            <option value="">Toàn bộ Deck</option>
                             {% for t in available_tags %}
                             <option value="{{ t }}" {% if t == source_tag %}selected{% endif %}>{{ t }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-400">Loại Bỏ Fields <span class="text-xs text-slate-500">(Trường không đọc)</span></label>
-                        <input type="text" id="exclude" value="{{ exclude }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner" placeholder="VD: Note, Source">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-400">Giới Hạn Tổng <span class="text-xs text-slate-500">(Trống = Hết)</span></label>
-                        <input type="number" id="limit" value="{{ max_cards }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-emerald-500 transition shadow-inner" placeholder="VD: 100">
+                    <div>
+                        <label class="label">Giới hạn lượt này</label>
+                        <input id="limit" type="number" min="1" step="1" value="{{ max_cards }}" class="input" placeholder="Trống = quét hết">
                     </div>
                 </div>
 
-                <div class="space-y-1">
-                    <label class="block font-medium text-slate-400">Số Thẻ/Lần Gửi AI (Batch Size) <span class="text-xs text-slate-500">(Mặc định 50 thẻ)</span></label>
-                    <input type="number" id="batch_size" value="{{ batch_size }}" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-blue-500 transition shadow-inner" placeholder="VD: 50">
-                </div>
-
-                <div class="space-y-4 pt-4 border-t border-slate-700/50">
-                    <div class="flex justify-between items-end">
-                        <label class="block font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
-                           🧠 Trợ lý Y Khoa Lõi (System Prompt)
-                        </label>
+                <details class="mt-5 rounded-lg border border-slate-600 bg-slate-900/50 p-4">
+                    <summary class="cursor-pointer select-none font-black text-slate-200">Advanced</summary>
+                    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div>
+                            <label class="label">Google Gemini API Keys</label>
+                            <input id="api_keys" type="password" value="{{ api_keys }}" class="input" placeholder="Nhiều key cách nhau bằng dấu phẩy">
+                        </div>
+                        <div>
+                            <label class="label">Model Gemini</label>
+                            <select id="model" class="input">
+                                {% for m in available_models %}
+                                <option value="{{ m }}" {% if m == current_model %}selected{% endif %}>{{ m }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Batch size</label>
+                            <input id="batch_size" type="number" min="1" step="1" value="{{ batch_size }}" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Field không gửi AI</label>
+                            <input id="exclude" type="text" value="{{ exclude }}" class="input" placeholder="Note, Source, Tags, Ex">
+                        </div>
+                        <div>
+                            <label class="label">Cách chọn thẻ</label>
+                            <select id="card_selection_mode" class="input" onchange="toggleSimilarOptions()">
+                                <option value="sequential" {% if card_selection_mode == 'sequential' %}selected{% endif %}>Tuần tự trong Deck/Tag</option>
+                                <option value="similar" {% if card_selection_mode == 'similar' %}selected{% endif %}>Gần giống nhau local</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Field so sánh gần giống</label>
+                            <input id="similar_field_mode" type="text" value="{{ similar_field_mode }}" class="input" placeholder="Ques, A, B, C, D">
+                            <p class="hint mt-1">Có thể nhập nhiều field bằng dấu phẩy.</p>
+                        </div>
+                        <div id="seedWrap" class="lg:col-span-2">
+                            <label class="label">Seed keyword</label>
+                            <input id="similar_seed_keyword" type="text" value="{{ similar_seed_keyword }}" class="input" placeholder="VD: viêm phổi">
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="label">Raw prompt override</label>
+                            <textarea id="system_prompt_override" rows="5" class="input font-mono text-xs" placeholder="Để trống để app tự sinh prompt từ preset.">{{ system_prompt_override }}</textarea>
+                        </div>
                     </div>
-                    
-                    <!-- Dropdown chọn Chuyên Khoa -->
-                    <div class="space-y-1">
-                        <label class="block font-medium text-slate-400 text-sm">Bộ Tag Nhanh Truyền Vào Dưới Đây (Theo Khoa)</label>
-                        <select id="specialtySelect" onchange="changeSpecialtyPrompt()" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 outline-none focus:border-emerald-500 transition shadow-inner text-emerald-300">
-                            {% for key in specialty_prompts.keys() %}
-                                <option value="{{ key }}" {% if loop.first %}selected{% endif %}>{{ key | replace('_', ' ') | title }}</option>
-                            {% endfor %}
-                        </select>
+                </details>
+            </section>
+
+            <section class="panel rounded-lg p-5">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="text-xl font-black text-violet-300">Quản lý Preset</h2>
+                    <div class="flex gap-2">
+                        <button type="button" class="btn btn-ghost" onclick="newPreset()">Tạo mới</button>
+                        <button type="button" class="btn btn-secondary" onclick="duplicatePreset()">Duplicate</button>
                     </div>
-
-                    <p class="text-xs text-slate-400 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                        <b>Quy trình Tư Duy Suy Luận Sâu (CoT) đã được Bật Mặc Định.</b> <br>
-                        AI sẽ tự động đọc Thẻ + Tag Gốc -> Suy luận Cơ quan nội tạng -> Hội chứng -> Đưa ra Tag Cuối theo format bạn dạy bên dưới. 
-                        Bạn có thể sửa đổi quy tắc nếu hệ thống bắt rác quá nhiều.
-                    </p>
-                    <textarea id="system_prompt" rows="11" class="w-full bg-slate-900 border border-emerald-900/50 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition shadow-inner font-mono text-emerald-100/90 text-[13px] leading-relaxed resize-y custom-scrollbar">{{ system_prompt }}</textarea>
                 </div>
-
-                <div class="flex gap-4 mt-6">
-                    <button type="button" id="startBtn" onclick="startScan()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-lg shadow-lg shadow-blue-500/30 transform transition active:scale-95 flex justify-center items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Bắt Đầu Quét Tự Động
-                    </button>
-
-                    <button type="button" id="backgroundBtn" onclick="startBackgroundScan()" class="py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 transform transition active:scale-95 flex justify-center items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2M7 9l5-5m0 0l5 5m-5-5v12"></path></svg>
-                        Chạy nền nhẹ
-                    </button>
-                    
-                    <button type="button" id="stopBtn" onclick="stopScan()" class="hidden py-3 px-6 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-lg shadow-lg shadow-red-500/30 transform transition active:scale-95 flex justify-center items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Dừng Lại
-                    </button>
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+                    <div>
+                        <label class="label">Preset đang sửa</label>
+                        <select id="editor_preset" class="input" onchange="loadPresetIntoEditor(this.value)"></select>
+                        <p id="editorStatus" class="hint mt-2"></p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div>
+                            <label class="label">ID</label>
+                            <input id="edit_id" class="input" placeholder="VD: Da_lieu">
+                        </div>
+                        <div>
+                            <label class="label">Tên hiển thị</label>
+                            <input id="edit_name" class="input" placeholder="VD: Da liễu">
+                        </div>
+                        <div>
+                            <label class="label">Loại preset</label>
+                            <select id="edit_kind" class="input">
+                                <option value="tagging">Quét tag chuyên khoa</option>
+                                <option value="filter">Lọc thẻ</option>
+                                <option value="duplicate_review">Tìm trùng/gần trùng</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Scan mode</label>
+                            <select id="edit_scan_mode" class="input">
+                                <option value="sequential">Tuần tự</option>
+                                <option value="similar">Gần giống local</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Batch size mặc định</label>
+                            <input id="edit_batch_size" type="number" min="1" step="1" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Tag mặc định</label>
+                            <input id="edit_default_tag" class="input" placeholder="VD: AI::Da_lieu::0_xac_dinh">
+                        </div>
+                        <div>
+                            <label class="label">Fields gửi AI</label>
+                            <textarea id="edit_fields_to_read" rows="4" class="input font-mono text-xs" placeholder="Mỗi dòng một field. Để trống = tất cả field không bị exclude."></textarea>
+                        </div>
+                        <div>
+                            <label class="label">Skip tags</label>
+                            <textarea id="edit_skip_tags" rows="4" class="input font-mono text-xs" placeholder="Thẻ đã có tag này sẽ bị bỏ qua."></textarea>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="label">Allowed tags</label>
+                            <textarea id="edit_allowed_tags" rows="7" class="input font-mono text-xs" placeholder="Mỗi dòng một tag được phép."></textarea>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="label">Rule / hướng dẫn</label>
+                            <textarea id="edit_instructions" rows="7" class="input font-mono text-xs" placeholder="Mô tả cách quyết định tag/lọc."></textarea>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <label class="label">Preview prompt</label>
+                            <pre id="promptPreview" class="max-h-56 overflow-auto rounded-lg border border-slate-600 bg-black/50 p-3 text-xs text-slate-200"></pre>
+                        </div>
+                        <div class="flex flex-wrap gap-2 lg:col-span-2">
+                            <button type="button" class="btn btn-primary" onclick="saveEditorPreset()">Lưu preset</button>
+                            <button type="button" class="btn btn-danger" onclick="deleteEditorPreset()">Xoá preset</button>
+                            <button type="button" class="btn btn-secondary" onclick="refreshPromptPreview()">Cập nhật preview</button>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </section>
         </section>
 
-        <!-- Right: Execution Logs -->
-        <section class="glass-panel p-6 rounded-2xl shadow-2xl flex flex-col h-full lg:max-h-[850px]">
-            <h2 class="text-2xl font-semibold mb-4 text-emerald-400 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                Bảng Điều Khiển Live Logs
-            </h2>
-            
-            <!-- Progress Bar -->
-            <div id="progressContainer" class="hidden mb-4 space-y-2">
-                <div class="flex justify-between text-xs font-semibold text-slate-400">
-                    <span>Scanner Progress</span>
+        <aside class="panel rounded-lg p-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-48px)] xl:overflow-hidden">
+            <h2 class="mb-4 text-xl font-black text-amber-300">3. Chạy & xem log</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="startBtn" type="button" class="btn btn-primary col-span-2 flex items-center justify-center gap-2" onclick="startScan()">Chạy quét</button>
+                <button id="backgroundBtn" type="button" class="btn btn-secondary" onclick="startBackgroundScan()">Chạy nền</button>
+                <button id="stopBtn" type="button" class="btn btn-danger hidden" onclick="stopScan()">Dừng</button>
+            </div>
+
+            <div id="progressContainer" class="mt-5 hidden space-y-2">
+                <div class="flex justify-between text-xs font-bold text-slate-400">
+                    <span id="progressLabel">Scanner Progress</span>
                     <span id="progressText">0 / 0</span>
                 </div>
-                <div class="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div id="progressBar" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                <div class="h-3 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div id="progressBar" class="h-full rounded-full bg-sky-500 transition-all duration-300" style="width:0%"></div>
                 </div>
             </div>
 
-            <!-- Terminal output window -->
-            <div id="terminal" class="flex-1 bg-black/60 rounded-xl border border-slate-700 p-4 font-mono text-xs overflow-y-auto space-y-3 shadow-inner">
-                <div class="text-slate-500 italic">Vui lòng bấm 'Khởi động' để bắt đầu kết nối với AnkiConnect và Gemini AI...</div>
+            <div id="terminal" class="mt-5 h-[560px] overflow-y-auto rounded-lg border border-slate-700 bg-black/60 p-3 font-mono text-xs text-slate-300">
+                <div class="text-slate-500">Sẵn sàng. Chọn preset rồi bấm Chạy quét.</div>
             </div>
-            
-        </section>
+        </aside>
     </main>
 
-    <!-- Lưu trữ dữ liệu JSON tĩnh an toàn khỏi trình biên dịch JS của IDE -->
-    <script id="specialty-data" type="application/json">
-        {{ specialty_prompts | tojson | safe }}
-    </script>
-
     <script>
+        let presets = {{ presets | tojson | safe }};
+        const initialPresetId = {{ current_preset_id | tojson | safe }};
         let eventSource = null;
         let backgroundPollTimer = null;
         let lastBackgroundSeq = 0;
         let activeScanMode = 'idle';
-        const TERMINAL_LOG_LIMIT = 120;
-        const specialtyPrompts = JSON.parse(document.getElementById('specialty-data').textContent);
+        const TERMINAL_LOG_LIMIT = 140;
 
-        function changeSpecialtyPrompt() {
-            const selectEl = document.getElementById('specialtySelect');
-            const textareaEl = document.getElementById('system_prompt');
-            const selectedKey = selectEl.value;
-            
-            if (specialtyPrompts[selectedKey]) {
-                textareaEl.value = specialtyPrompts[selectedKey];
-                // Thêm hiệu ứng flash nhẹ
-                textareaEl.classList.add('bg-emerald-900/30');
-                setTimeout(() => textareaEl.classList.remove('bg-emerald-900/30'), 300);
+        function linesToList(text) {
+            return String(text || '').split('\n').map(x => x.trim()).filter(Boolean);
+        }
+
+        function listToLines(items) {
+            return (items || []).join('\n');
+        }
+
+        function getPreset(id) {
+            return presets.find(p => p.id === id) || presets[0] || null;
+        }
+
+        function kindLabel(kind) {
+            return {
+                tagging: 'Quét tag chuyên khoa',
+                filter: 'Lọc thẻ',
+                duplicate_review: 'Tìm trùng/gần trùng'
+            }[kind] || kind;
+        }
+
+        function rebuildPresetSelects() {
+            const scanSelect = document.getElementById('preset_id');
+            const editorSelect = document.getElementById('editor_preset');
+            const currentScan = scanSelect.value || initialPresetId;
+            const currentEditor = editorSelect.value || initialPresetId;
+
+            editorSelect.innerHTML = presets.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (getPreset(currentEditor)) editorSelect.value = currentEditor;
+
+            filterPresetOptions(currentScan);
+        }
+
+        function filterPresetOptions(preferredId = '') {
+            const kind = document.getElementById('task_kind').value;
+            const scanSelect = document.getElementById('preset_id');
+            const filtered = presets.filter(p => p.kind === kind);
+            scanSelect.innerHTML = filtered.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (preferredId && filtered.some(p => p.id === preferredId)) {
+                scanSelect.value = preferredId;
             }
+            if (!scanSelect.value && filtered[0]) scanSelect.value = filtered[0].id;
+            applySelectedPreset();
+        }
+
+        function applySelectedPreset() {
+            const preset = getPreset(document.getElementById('preset_id').value);
+            if (!preset) return;
+
+            document.getElementById('task_kind').value = preset.kind;
+            document.getElementById('batch_size').value = preset.batch_size || 500;
+            document.getElementById('card_selection_mode').value = preset.kind === 'duplicate_review' ? 'similar' : (preset.scan_mode || 'sequential');
+            document.getElementById('similar_field_mode').value = (preset.fields_to_read && preset.fields_to_read.length) ? preset.fields_to_read.join(', ') : document.getElementById('similar_field_mode').value || 'Ques, A, B, C, D';
+
+            const summary = document.getElementById('presetSummary');
+            summary.innerHTML = `
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded bg-sky-500/20 px-2 py-1 text-xs font-black text-sky-200">${kindLabel(preset.kind)}</span>
+                    <span class="font-black">${preset.name}</span>
+                    ${preset.built_in ? '<span class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-300">mặc định</span>' : '<span class="rounded bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200">tự tạo</span>'}
+                </div>
+                <div class="mt-2 text-slate-300">${preset.allowed_tags.length} tag được phép. Tag mặc định: <code>${preset.default_tag || 'không đặt'}</code>.</div>
+            `;
+            toggleSimilarOptions();
+        }
+
+        function toggleSimilarOptions() {
+            const mode = document.getElementById('card_selection_mode').value;
+            document.getElementById('seedWrap').classList.toggle('hidden', mode !== 'similar');
+        }
+
+        function presetFromEditor() {
+            return {
+                id: document.getElementById('edit_id').value.trim(),
+                name: document.getElementById('edit_name').value.trim(),
+                kind: document.getElementById('edit_kind').value,
+                scan_mode: document.getElementById('edit_scan_mode').value,
+                batch_size: Number(document.getElementById('edit_batch_size').value || 500),
+                default_tag: document.getElementById('edit_default_tag').value.trim(),
+                fields_to_read: linesToList(document.getElementById('edit_fields_to_read').value),
+                skip_tags: linesToList(document.getElementById('edit_skip_tags').value),
+                allowed_tags: linesToList(document.getElementById('edit_allowed_tags').value),
+                instructions: document.getElementById('edit_instructions').value.trim(),
+                built_in: false
+            };
+        }
+
+        function loadPresetIntoEditor(id) {
+            const preset = getPreset(id);
+            if (!preset) return;
+            document.getElementById('edit_id').value = preset.id;
+            document.getElementById('edit_id').disabled = preset.built_in;
+            document.getElementById('edit_name').value = preset.name || '';
+            document.getElementById('edit_kind').value = preset.kind || 'tagging';
+            document.getElementById('edit_scan_mode').value = preset.scan_mode || 'sequential';
+            document.getElementById('edit_batch_size').value = preset.batch_size || 500;
+            document.getElementById('edit_default_tag').value = preset.default_tag || '';
+            document.getElementById('edit_fields_to_read').value = listToLines(preset.fields_to_read);
+            document.getElementById('edit_skip_tags').value = listToLines(preset.skip_tags);
+            document.getElementById('edit_allowed_tags').value = listToLines(preset.allowed_tags);
+            document.getElementById('edit_instructions').value = preset.instructions || '';
+            document.getElementById('editorStatus').textContent = preset.built_in ? 'Preset mặc định: duplicate để chỉnh sửa.' : 'Preset tự tạo: có thể sửa hoặc xoá.';
+            refreshPromptPreview();
+        }
+
+        function newPreset() {
+            const base = {
+                id: 'preset_moi',
+                name: 'Preset mới',
+                kind: 'tagging',
+                scan_mode: 'sequential',
+                batch_size: 100,
+                default_tag: '',
+                fields_to_read: [],
+                skip_tags: [],
+                allowed_tags: [],
+                instructions: '',
+                built_in: false
+            };
+            presets = presets.filter(p => p.id !== base.id).concat(base);
+            rebuildPresetSelects();
+            document.getElementById('editor_preset').value = base.id;
+            loadPresetIntoEditor(base.id);
+        }
+
+        function duplicatePreset() {
+            const source = getPreset(document.getElementById('editor_preset').value || document.getElementById('preset_id').value);
+            if (!source) return;
+            const copy = JSON.parse(JSON.stringify(source));
+            copy.id = `${source.id}_custom`;
+            let suffix = 2;
+            while (getPreset(copy.id)) {
+                copy.id = `${source.id}_custom_${suffix++}`;
+            }
+            copy.name = `${source.name} - bản chỉnh`;
+            copy.built_in = false;
+            presets.push(copy);
+            rebuildPresetSelects();
+            document.getElementById('editor_preset').value = copy.id;
+            loadPresetIntoEditor(copy.id);
+        }
+
+        function refreshPromptPreview() {
+            const preset = presetFromEditor();
+            const tags = preset.allowed_tags.map(tag => `- ${tag}`).join('\n');
+            document.getElementById('promptPreview').textContent = `${preset.instructions}\n\nNGUỒN SỰ THẬT TỪ PRESET:\n${kindLabel(preset.kind)}\n\nDANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:\n${tags}\n\nTag mặc định: ${preset.default_tag || 'không đặt'}`;
+        }
+
+        async function saveEditorPreset() {
+            const preset = presetFromEditor();
+            if (!preset.id || !preset.name || !preset.instructions || preset.allowed_tags.length === 0) {
+                showTerminalMessage('error', 'Preset cần ID, tên, rule/hướng dẫn và ít nhất một allowed tag.');
+                return;
+            }
+            const existing = getPreset(preset.id);
+            if (existing && existing.built_in) {
+                showTerminalMessage('warning', 'Preset mặc định không sửa trực tiếp được. Hãy bấm Duplicate trước.');
+                return;
+            }
+
+            const method = existing ? 'PUT' : 'POST';
+            const url = existing ? `/api/presets/${encodeURIComponent(preset.id)}` : '/api/presets';
+            const resp = await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(preset)
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.status !== 'success') {
+                showTerminalMessage('error', data.message || 'Không lưu được preset.');
+                return;
+            }
+            const saved = data.preset;
+            presets = presets.filter(p => p.id !== saved.id).concat(saved).sort((a, b) => a.name.localeCompare(b.name));
+            rebuildPresetSelects();
+            document.getElementById('editor_preset').value = saved.id;
+            document.getElementById('preset_id').value = saved.id;
+            document.getElementById('task_kind').value = saved.kind;
+            loadPresetIntoEditor(saved.id);
+            filterPresetOptions(saved.id);
+            showTerminalMessage('success', `Đã lưu preset: ${saved.name}`);
+        }
+
+        async function deleteEditorPreset() {
+            const preset = getPreset(document.getElementById('editor_preset').value);
+            if (!preset) return;
+            if (preset.built_in) {
+                showTerminalMessage('warning', 'Preset mặc định không xoá được. Hãy xoá bản duplicate nếu cần.');
+                return;
+            }
+            const resp = await fetch(`/api/presets/${encodeURIComponent(preset.id)}`, { method: 'DELETE' });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.status !== 'success') {
+                showTerminalMessage('error', data.message || 'Không xoá được preset.');
+                return;
+            }
+            presets = presets.filter(p => p.id !== preset.id);
+            rebuildPresetSelects();
+            loadPresetIntoEditor(document.getElementById('editor_preset').value);
+            showTerminalMessage('success', `Đã xoá preset: ${preset.name}`);
         }
 
         function getScanPayload() {
             return {
                 api_keys: document.getElementById('api_keys').value,
                 model: document.getElementById('model').value,
+                preset_id: document.getElementById('preset_id').value,
                 deck: document.getElementById('deck').value,
                 source_tag: document.getElementById('source_tag').value,
                 exclude: document.getElementById('exclude').value,
-                system_prompt: document.getElementById('system_prompt').value,
                 limit: document.getElementById('limit').value,
-                batch_size: document.getElementById('batch_size').value
+                batch_size: document.getElementById('batch_size').value,
+                card_selection_mode: document.getElementById('card_selection_mode').value,
+                similar_field_mode: document.getElementById('similar_field_mode').value,
+                similar_seed_keyword: document.getElementById('similar_seed_keyword').value,
+                system_prompt_override: document.getElementById('system_prompt_override').value
             };
         }
 
-        function resetPrimaryButtons(startLabel = 'Bắt Đầu Quét Tự Động') {
+        function validateScanPayload(payload) {
+            for (const [label, value] of [['Giới hạn', payload.limit], ['Batch size', payload.batch_size]]) {
+                const text = String(value || '').trim();
+                if (label === 'Giới hạn' && text === '') continue;
+                const parsed = Number(text);
+                if (!Number.isInteger(parsed) || parsed <= 0) return `${label} phải là số nguyên dương.`;
+            }
+            if (!payload.preset_id) return 'Chưa chọn preset.';
+            return '';
+        }
+
+        function setRunning(isRunning, label = 'Chạy quét') {
             const startBtn = document.getElementById('startBtn');
             const backgroundBtn = document.getElementById('backgroundBtn');
-
-            startBtn.disabled = false;
-            startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            startBtn.innerHTML = `
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                ${startLabel}
-            `;
-
-            backgroundBtn.disabled = false;
-            backgroundBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            backgroundBtn.innerHTML = `
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2M7 9l5-5m0 0l5 5m-5-5v12"></path></svg>
-                Chạy nền nhẹ
-            `;
+            const stopBtn = document.getElementById('stopBtn');
+            startBtn.disabled = isRunning;
+            backgroundBtn.disabled = isRunning;
+            startBtn.classList.toggle('opacity-50', isRunning);
+            backgroundBtn.classList.toggle('opacity-50', isRunning);
+            stopBtn.classList.toggle('hidden', !isRunning);
+            startBtn.innerHTML = isRunning ? '<span class="spinner"></span> Đang chạy...' : label;
         }
 
         function trimTerminalLog() {
-            if (activeScanMode !== 'background' && activeScanMode !== 'live') {
-                return;
-            }
-
             const terminal = document.getElementById('terminal');
-            while (terminal.children.length > TERMINAL_LOG_LIMIT) {
-                terminal.removeChild(terminal.firstElementChild);
-            }
+            while (terminal.children.length > TERMINAL_LOG_LIMIT) terminal.removeChild(terminal.firstElementChild);
+        }
+
+        function showTerminalMessage(type, msg) {
+            renderLogEntry({type, msg});
         }
 
         function renderLogEntry(data) {
             const terminal = document.getElementById('terminal');
             const logEl = document.createElement('div');
-
-            if(data.type === 'success') {
-                logEl.className = "text-emerald-400 bg-emerald-900/20 p-2 rounded border border-emerald-800/50";
-                logEl.innerHTML = `[+] ${data.msg}`;
-            } else if(data.type === 'error') {
-                logEl.className = "text-red-400 bg-red-900/20 p-2 rounded border border-red-800/50";
-                logEl.innerText = `[-] ${data.msg}`;
-            } else if(data.type === 'warning') {
-                logEl.className = "text-yellow-400";
-                logEl.innerText = `[-] ${data.msg}`;
-            } else if(data.type === 'done') {
-                logEl.className = "text-blue-400 font-bold bg-blue-900/20 p-2 rounded border border-blue-800/50 text-center";
-                logEl.innerText = `[✨] ${data.msg}`;
+            const cleanMsg = String(data.msg || '').replace(/^\[\*\]\s*/, '');
+            if (data.type === 'success') {
+                logEl.className = 'mb-2 rounded border border-emerald-800/50 bg-emerald-900/20 p-2 text-emerald-300';
+                logEl.innerHTML = `[+] ${cleanMsg}`;
+            } else if (data.type === 'error') {
+                logEl.className = 'mb-2 rounded border border-red-800/50 bg-red-900/20 p-2 text-red-300';
+                logEl.innerText = `[-] ${cleanMsg}`;
+            } else if (data.type === 'warning') {
+                logEl.className = 'mb-2 text-yellow-300';
+                logEl.innerText = `[!] ${cleanMsg}`;
+            } else if (data.type === 'done') {
+                logEl.className = 'mb-2 rounded border border-sky-800/50 bg-sky-900/20 p-2 text-center font-black text-sky-300';
+                logEl.innerText = `[*] ${cleanMsg}`;
             } else {
-                logEl.className = "text-slate-300";
-                logEl.innerHTML = `[*] ${data.msg}`;
+                logEl.className = 'mb-2 border-l border-slate-700 pl-3 text-slate-300';
+                logEl.innerHTML = `[*] ${cleanMsg}`;
             }
-
             terminal.appendChild(logEl);
             trimTerminalLog();
             terminal.scrollTop = terminal.scrollHeight;
@@ -278,11 +516,18 @@
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
+            const progressLabel = document.getElementById('progressLabel');
             const safeTotal = Number(total) || 0;
             const safeCurrent = Number(current) || 0;
-            const pct = safeTotal > 0 ? Math.round((safeCurrent / safeTotal) * 100) : 0;
-
             progressContainer.classList.remove('hidden');
+            if (total === 'ai' || total === 'local') {
+                progressLabel.innerText = current;
+                progressText.innerText = '';
+                progressBar.style.width = '100%';
+                return;
+            }
+            const pct = safeTotal > 0 ? Math.round((safeCurrent / safeTotal) * 100) : 0;
+            progressLabel.innerText = 'Scanner Progress';
             progressBar.style.width = pct + '%';
             progressText.innerText = safeTotal > 0 ? `${safeCurrent} / ${safeTotal}` : 'Đang chuẩn bị...';
         }
@@ -295,133 +540,73 @@
         }
 
         async function stopScan() {
-            const stopBtn = document.getElementById('stopBtn');
-            const startBtn = document.getElementById('startBtn');
-            const backgroundBtn = document.getElementById('backgroundBtn');
-            const terminal = document.getElementById('terminal');
-
-            stopBtn.disabled = true;
-            stopBtn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang dừng...
-            `;
-            
-            try {
-                if (eventSource) {
-                    eventSource.close();
-                    eventSource = null;
-                }
-                await fetch('/stop_scan', { method: 'POST' });
-                terminal.innerHTML += '<div class="text-yellow-400">[*] Lệnh dừng đã được gửi. Đang chờ xác nhận...</div>';
-            } catch (error) {
-                console.error("Lỗi khi gửi lệnh dừng:", error);
-                terminal.innerHTML += '<div class="text-red-400">[-] Lỗi khi gửi lệnh dừng: ' + error.message + '</div>';
-            } finally {
-                // Reset buttons after attempting to stop
-                resetPrimaryButtons();
-                backgroundBtn.disabled = false;
-                stopBtn.classList.add('hidden');
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
             }
+            await fetch('/stop_scan', { method: 'POST' }).catch(() => {});
+            showTerminalMessage('warning', 'Lệnh dừng đã được gửi.');
+            setRunning(false, 'Thử lại');
+        }
+
+        async function saveConfigBeforeRun() {
+            const payload = getScanPayload();
+            const payloadError = validateScanPayload(payload);
+            if (payloadError) throw new Error(payloadError);
+
+            const saveResp = await fetch('/save_config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const saveData = await saveResp.json().catch(() => ({}));
+            if (!saveResp.ok || saveData.status !== 'success') {
+                throw new Error(saveData.message || 'Không lưu được cấu hình.');
+            }
+            return payload;
         }
 
         async function startScan() {
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const backgroundBtn = document.getElementById('backgroundBtn');
-            const terminal = document.getElementById('terminal'); // Renamed from 'logs' to 'terminal'
-            const progressContainer = document.getElementById('progressContainer'); // Renamed from 'progress-container'
-            const progressBar = document.getElementById('progressBar'); // Renamed from 'progress-bar'
-            const progressText = document.getElementById('progressText'); // Renamed from 'progress-text'
-
             activeScanMode = 'live';
             stopBackgroundPolling();
-            
-            // Reset UI
-            terminal.innerHTML = '';
-            progressContainer.classList.remove('hidden');
-            progressBar.style.width = '0%';
-            progressText.innerText = 'Đang chuẩn bị...';
-            
-            // Handle buttons
-            startBtn.disabled = true;
-            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            startBtn.innerHTML = '<div class="spinner"></div> Đang chuẫn bị API...';
-            backgroundBtn.disabled = true;
-            backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            stopBtn.classList.remove('hidden');
-            stopBtn.disabled = false;
-            stopBtn.innerHTML = `
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Dừng Lại
-            `;
-
-            terminal.innerHTML = '<div class="text-blue-400">[*] Đang lưu cấu hình và gửi lệnh khởi chạy...</div>';
-
-            const payload = getScanPayload();
+            document.getElementById('terminal').innerHTML = '';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').innerText = 'Đang chuẩn bị...';
+            setRunning(true);
+            showTerminalMessage('info', 'Đang lưu cấu hình và khởi chạy...');
 
             try {
-                await fetch('/save_config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
+                await saveConfigBeforeRun();
             } catch (error) {
-                terminal.innerHTML += `<div class="text-red-400">[-] Lỗi khi lưu cấu hình: ${error.message}</div>`;
-                resetPrimaryButtons('Thử Lại');
-                stopBtn.classList.add('hidden');
+                showTerminalMessage('error', error.message);
+                setRunning(false, 'Thử lại');
                 return;
             }
 
-            // 2. Mở SSE kết nối log mượt mà
-            if(eventSource) eventSource.close();
-            
-            startBtn.innerHTML = '<div class="spinner border-t-emerald-400"></div> Đang tiến hành Scanner...';
-            
+            if (eventSource) eventSource.close();
             eventSource = new EventSource('/stream_scan');
-            
             eventSource.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                
-                if(data.type === 'progress') {
+                if (data.type === 'progress') {
                     updateProgress(data.current, data.total);
-                    return; // Không in log progress làm rối màn hình
+                    return;
                 }
-                
                 renderLogEntry(data);
-
-                if(data.type === 'done') {
-                    eventSource.close();
-                    eventSource = null; // Clear eventSource
-                    
-                    resetPrimaryButtons('Quét Xong! Chạy Lại Trận Nữa');
-                    stopBtn.classList.add('hidden');
-                }
-            };
-            
-            eventSource.onerror = function() {
-                if (eventSource) {
+                if (data.type === 'done') {
                     eventSource.close();
                     eventSource = null;
+                    setRunning(false, 'Chạy lại');
                 }
-                resetPrimaryButtons('Thử Lại');
-                stopBtn.classList.add('hidden');
-                terminal.innerHTML += '<div class="text-red-500">[-] Đóng Server hoặc Mất Kết Nối Cục Bộ.</div>';
+            };
+            eventSource.onerror = function() {
+                if (eventSource) eventSource.close();
+                eventSource = null;
+                showTerminalMessage('error', 'Mất kết nối server cục bộ.');
+                setRunning(false, 'Thử lại');
             };
         }
 
         async function startBackgroundScan() {
-            const startBtn = document.getElementById('startBtn');
-            const backgroundBtn = document.getElementById('backgroundBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const terminal = document.getElementById('terminal');
-            const progressContainer = document.getElementById('progressContainer');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-
             activeScanMode = 'background';
             if (eventSource) {
                 eventSource.close();
@@ -429,102 +614,83 @@
             }
             stopBackgroundPolling();
             lastBackgroundSeq = 0;
+            document.getElementById('terminal').innerHTML = '';
+            setRunning(true);
+            showTerminalMessage('info', 'Đang lưu cấu hình và khởi động job nền...');
 
-            terminal.innerHTML = '<div class="text-emerald-400">[*] Đang lưu cấu hình và khởi động job nền...</div>';
-            progressContainer.classList.remove('hidden');
-            progressBar.style.width = '0%';
-            progressText.innerText = 'Đang chuẩn bị...';
-
-            startBtn.disabled = true;
-            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            backgroundBtn.disabled = true;
-            backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            backgroundBtn.innerHTML = '<div class="spinner border-t-emerald-200"></div> Đang chạy nền...';
-
-            stopBtn.classList.remove('hidden');
-            stopBtn.disabled = false;
-            stopBtn.innerHTML = `
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Dừng Lại
-            `;
+            let payload;
+            try {
+                payload = await saveConfigBeforeRun();
+            } catch (error) {
+                showTerminalMessage('error', error.message);
+                setRunning(false, 'Thử lại');
+                return;
+            }
 
             try {
                 const resp = await fetch('/start_background_scan', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(getScanPayload())
+                    body: JSON.stringify(payload)
                 });
                 const data = await resp.json();
-
-                if (data.status === 'already_running') {
-                    terminal.innerHTML = '<div class="text-yellow-400">[*] Đang có job nền chạy sẵn. Đã nối lại terminal hiện tại...</div>';
-                } else {
-                    terminal.innerHTML = '<div class="text-emerald-400">[*] Job nền đã bắt đầu. Terminal sẽ tự cập nhật nhẹ mỗi 1.5 giây.</div>';
+                if (!resp.ok || (data.status !== 'started' && data.status !== 'already_running')) {
+                    throw new Error(data.message || 'Không khởi động được job nền.');
                 }
-
+                showTerminalMessage(data.status === 'already_running' ? 'warning' : 'success', data.message || 'Job nền đã bắt đầu.');
                 pollBackgroundStatus();
                 backgroundPollTimer = setInterval(pollBackgroundStatus, 1500);
             } catch (error) {
-                terminal.innerHTML += `<div class="text-red-400">[-] Lỗi khi khởi động job nền: ${error.message}</div>`;
-                resetPrimaryButtons('Thử Lại');
-                stopBtn.classList.add('hidden');
+                showTerminalMessage('error', error.message);
+                setRunning(false, 'Thử lại');
             }
         }
 
         async function pollBackgroundStatus() {
-            const stopBtn = document.getElementById('stopBtn');
-            const terminal = document.getElementById('terminal');
-
             try {
                 const resp = await fetch(`/background_status?since=${lastBackgroundSeq}`);
                 const data = await resp.json();
-
-                if (data.progress) {
-                    updateProgress(data.progress.current, data.progress.total);
-                }
-
+                if (data.progress) updateProgress(data.progress.current, data.progress.total);
                 for (const log of data.logs || []) {
-                    if (log.seq > lastBackgroundSeq) {
-                        lastBackgroundSeq = log.seq;
-                    }
+                    if (log.seq > lastBackgroundSeq) lastBackgroundSeq = log.seq;
                     renderLogEntry(log);
                 }
-
                 if (data.status === 'running' || data.status === 'stopping') {
-                    activeScanMode = 'background';
-                    document.getElementById('startBtn').disabled = true;
-                    document.getElementById('startBtn').classList.add('opacity-50', 'cursor-not-allowed');
-                    const backgroundBtn = document.getElementById('backgroundBtn');
-                    backgroundBtn.disabled = true;
-                    backgroundBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    backgroundBtn.innerHTML = '<div class="spinner border-t-emerald-200"></div> Đang chạy nền...';
-                    stopBtn.classList.remove('hidden');
-                    stopBtn.disabled = data.status === 'stopping';
+                    setRunning(true);
                     return;
                 }
-
                 if (activeScanMode === 'background') {
                     stopBackgroundPolling();
-                    resetPrimaryButtons(data.status === 'done' ? 'Quét Xong! Chạy Lại Trận Nữa' : 'Thử Lại');
-                    stopBtn.classList.add('hidden');
+                    setRunning(false, data.status === 'done' ? 'Chạy lại' : 'Thử lại');
                     activeScanMode = 'idle';
                 }
             } catch (error) {
                 stopBackgroundPolling();
-                terminal.innerHTML += `<div class="text-red-500">[-] Mất kết nối trạng thái job nền: ${error.message}</div>`;
-                resetPrimaryButtons('Thử Lại');
-                stopBtn.classList.add('hidden');
+                showTerminalMessage('error', `Mất kết nối trạng thái job nền: ${error.message}`);
+                setRunning(false, 'Thử lại');
             }
         }
 
         window.addEventListener('load', async () => {
+            const initial = getPreset(initialPresetId) || presets[0];
+            if (initial) document.getElementById('task_kind').value = initial.kind;
+            rebuildPresetSelects();
+            if (initial) {
+                document.getElementById('preset_id').value = initial.id;
+                document.getElementById('editor_preset').value = initial.id;
+                loadPresetIntoEditor(initial.id);
+                filterPresetOptions(initial.id);
+            }
+            toggleSimilarOptions();
+
             try {
                 const resp = await fetch('/background_status?since=0');
                 const data = await resp.json();
                 if (data.status === 'running' || data.status === 'stopping') {
                     activeScanMode = 'background';
                     lastBackgroundSeq = 0;
-                    document.getElementById('terminal').innerHTML = '<div class="text-emerald-400">[*] Đã nối lại job nền đang chạy...</div>';
+                    document.getElementById('terminal').innerHTML = '';
+                    showTerminalMessage('success', 'Đã nối lại job nền đang chạy.');
                     pollBackgroundStatus();
                     backgroundPollTimer = setInterval(pollBackgroundStatus, 1500);
                 }

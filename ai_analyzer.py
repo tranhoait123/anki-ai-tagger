@@ -10,12 +10,13 @@ class CardAnalysis(BaseModel):
     note_id: int = Field(description="ID gốc của thẻ Anki.")
     reasoning: str = Field(description="Lập luận y khoa chi tiết: phân tích từng dấu hiệu trong thẻ, bám sát các gợi ý chuyên khoa.")
     suggested_tags: List[str] = Field(description="Danh sách các Tag phù hợp nhất được AI sinh ra dựa theo định dạng ở System Prompt.")
+    duplicate_review_tags: List[str] = Field(default_factory=list, description="Tag review trùng/gần trùng nếu phát hiện trong batch gần giống.")
     confidence: float = Field(description="Độ tự tin trung bình của các Tag (0.0 đến 1.0).")
 
 class BatchDiagnosisResult(BaseModel):
     results: List[CardAnalysis] = Field(description="Mảng danh sách lưu trữ kết quả phân tích đồng loạt cho toàn bộ các thẻ được yêu cầu.")
 
-def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str) -> BatchDiagnosisResult:
+def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str, duplicate_review_mode: bool = False) -> BatchDiagnosisResult:
     """Gửi một Lô (Batch) danh sách thẻ và Tag gốc cho Gemini phân tích cùng lúc"""
     
     # Ghép thông tin danh sách thẻ thành văn bản Prompt
@@ -25,9 +26,24 @@ def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str) -> 
         batch_text += f"- Tag Gốc: {', '.join(card['existing_tags']) if card['existing_tags'] else 'Không có'}\n"
         batch_text += f"- Nội Dung:\n{card['content']}\n\n"
         
+    duplicate_review_prompt = ""
+    if duplicate_review_mode:
+        duplicate_review_prompt = """
+    CHẾ ĐỘ REVIEW TRÙNG/GẦN TRÙNG ĐANG BẬT:
+    - Batch này đã được thuật toán local chọn vì các thẻ gần giống nhau về nội dung.
+    - Ngoài `suggested_tags`, hãy dùng `duplicate_review_tags` để đánh dấu thẻ cần kiểm tra trùng ý nghĩa/cách trả lời.
+    - Chỉ dùng các tag review sau, không tự tạo tag review khác:
+      `AI_DUP_REVIEW`, `AI_DUP_KEEP_CANDIDATE`, `AI_DUP_DELETE_CANDIDATE`, `AI_DUP_NEAR_KEEP_SEPARATE`.
+    - Nếu một thẻ có vẻ là bản tốt nhất nên giữ trong một nhóm trùng/gần trùng, thêm `AI_DUP_REVIEW` và `AI_DUP_KEEP_CANDIDATE`.
+    - Nếu một thẻ có vẻ bị trùng nghĩa hoặc kém hơn thẻ khác trong batch, thêm `AI_DUP_REVIEW` và `AI_DUP_DELETE_CANDIDATE`.
+    - Nếu thẻ chỉ gần chủ đề nhưng khác ý nghĩa quan trọng, thêm `AI_DUP_NEAR_KEEP_SEPARATE`.
+    - KHÔNG yêu cầu xoá hoặc suspend trực tiếp; chỉ đánh tag để người dùng review sau.
+    """
+
     prompt = f"""
     HƯỚNG DẪN HỆ THỐNG DÀNH CHO BATCH PROCESSING:
     {system_prompt}
+    {duplicate_review_prompt}
     
     BẠN SẼ NHẬN ĐƯỢC MỘT LÔ (BATCH) CÁC THẺ SAU ĐÂY:
     {batch_text}
@@ -39,7 +55,7 @@ def analyze_batch_clinical_text(cards_batch: List[dict], system_prompt: str) -> 
     2. Hội chứng / Bệnh lý nghi ngờ.
     3. Trích xuất Tag: Khẳng định keyword hoặc dùng Tag mặc định.
     
-    Dựa vào lập luận, xuất các Tag mới vào `suggested_tags`. SỐ LƯỢNG VÀ TÊN TAG PHẢI TUÂN THỦ NGHIÊM NGẶT THEO QUY TẮC TRONG HƯỚNG DẪN HỆ THỐNG Ở TRÊN. Đảm bảo trả về mảng `results` bao hàm ĐẦY ĐỦ số lượng thẻ đã cho, không được bỏ sót thẻ nào!
+    Dựa vào lập luận, xuất các Tag mới vào `suggested_tags`. SỐ LƯỢNG VÀ TÊN TAG PHẢI TUÂN THỦ NGHIÊM NGẶT THEO QUY TẮC TRONG HƯỚNG DẪN HỆ THỐNG Ở TRÊN. Nếu chế độ review trùng/gần trùng đang bật, xuất thêm tag review vào `duplicate_review_tags`. Đảm bảo trả về mảng `results` bao hàm ĐẦY ĐỦ số lượng thẻ đã cho, không được bỏ sót thẻ nào!
     """
 
     max_attempts = len(config.GEMINI_API_KEYS)

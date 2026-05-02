@@ -1,0 +1,95 @@
+id: "Nhi_khoa"
+name: "Nhi khoa"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Nhi_khoa::He_tieu_hoa"
+- "AI::Nhi_khoa::He_than_tiet_nieu"
+- "AI::Nhi_khoa::He_ho_hap"
+- "AI::Nhi_khoa::He_tuan_hoan_tim_mach"
+- "AI::Nhi_khoa::He_than_kinh_truyen_nhiem"
+- "AI::Nhi_khoa::He_noi_tiet"
+- "AI::Nhi_khoa::He_huyet_hoc"
+- "AI::Nhi_khoa::He_so_sinh"
+- "AI::Nhi_khoa::Nhi_khoa_tong_quat"
+- "AI::Nhi_khoa::Hoi_suc_cap_cuu"
+- "AI::Nhi_khoa::Tiem_chung"
+- "AI::Nhi_khoa::Viem_phoi"
+- "AI::Nhi_khoa::Cac_thoi_ki_tuoi_tre"
+- "AI::Nhi_khoa::Su_tang_truong_the_chat"
+- "AI::Nhi_khoa::Su_phat_trien_tam_than_van_dong"
+- "AI::Nhi_khoa::Viem_cau_than"
+- "AI::Nhi_khoa::Kho_khe"
+- "AI::Nhi_khoa::Nhu_cau_dinh_duong_danh_gia_va_phan_loai_dinh_duong"
+- "AI::Nhi_khoa::Thieu_vitamin"
+- "AI::Nhi_khoa::Tieu_chay"
+- "AI::Nhi_khoa::Hoi_chung_thieu_mau"
+- "AI::Nhi_khoa::Hoi_chung_xuat_huyet"
+- "AI::Nhi_khoa::Hoi_chung_than_hu"
+- "AI::Nhi_khoa::Nhiem_trung_tieu"
+- "AI::Nhi_khoa::Suy_tim"
+- "AI::Nhi_khoa::Tang_huyet_ap"
+- "AI::Nhi_khoa::Tim_bam_sinh"
+- "AI::Nhi_khoa::Tu_chung_fallot"
+- "AI::Nhi_khoa::Kawasaki"
+- "AI::Nhi_khoa::Vang_da_so_sinh"
+- "AI::Nhi_khoa::Nhiem_khuan_so_sinh"
+- "AI::Nhi_khoa::Co_giat"
+- "AI::Nhi_khoa::Viem_mang_nao"
+- "AI::Nhi_khoa::Suy_ho_hap"
+- "AI::Nhi_khoa::Soc"
+- "AI::Nhi_khoa::Tay_chan_mieng"
+- "AI::Nhi_khoa::0_xac_dinh"
+default_tag: "AI::Nhi_khoa::0_xac_dinh"
+skip_tags:
+- "AI::Nhi_khoa"
+instructions: |-
+  Bạn là một Bác sĩ Nhi, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các bài giảng Nhi Khoa dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG (Chọn 1-3 tag đúng nhất):
+  - AI::Nhi_khoa::He_tieu_hoa
+  - AI::Nhi_khoa::He_than_tiet_nieu
+  - AI::Nhi_khoa::He_ho_hap
+  - AI::Nhi_khoa::He_tuan_hoan_tim_mach
+  - AI::Nhi_khoa::He_than_kinh_truyen_nhiem
+  - AI::Nhi_khoa::He_noi_tiet
+  - AI::Nhi_khoa::He_huyet_hoc
+  - AI::Nhi_khoa::He_so_sinh
+  - AI::Nhi_khoa::Nhi_khoa_tong_quat
+  - AI::Nhi_khoa::Hoi_suc_cap_cuu
+  - AI::Nhi_khoa::Tiem_chung
+  - AI::Nhi_khoa::Viem_phoi
+  - AI::Nhi_khoa::Cac_thoi_ki_tuoi_tre
+  - AI::Nhi_khoa::Su_tang_truong_the_chat
+  - AI::Nhi_khoa::Su_phat_trien_tam_than_van_dong
+  - AI::Nhi_khoa::Viem_cau_than
+  - AI::Nhi_khoa::Kho_khe (Cho thẻ về Hen, Viêm tiểu phế quản))
+  - AI::Nhi_khoa::Nhu_cau_dinh_duong_danh_gia_va_phan_loai_dinh_duong
+  - AI::Nhi_khoa::Thieu_vitamin
+  - AI::Nhi_khoa::Tieu_chay
+  - AI::Nhi_khoa::Hoi_chung_thieu_mau
+  - AI::Nhi_khoa::Hoi_chung_xuat_huyet
+  - AI::Nhi_khoa::Hoi_chung_than_hu
+  - AI::Nhi_khoa::Nhiem_trung_tieu
+  - AI::Nhi_khoa::Suy_tim
+  - AI::Nhi_khoa::Tang_huyet_ap
+  - AI::Nhi_khoa::Tim_bam_sinh (Cho thẻ về thông liên thất, nhĩ, còn ống đm)
+  - AI::Nhi_khoa::Tu_chung_fallot
+  - AI::Nhi_khoa::Kawasaki
+  - AI::Nhi_khoa::Vang_da_so_sinh
+  - AI::Nhi_khoa::Nhiem_khuan_so_sinh
+  - AI::Nhi_khoa::Co_giat
+  - AI::Nhi_khoa::Viem_mang_nao
+  - AI::Nhi_khoa::Suy_ho_hap
+  - AI::Nhi_khoa::Soc
+  - AI::Nhi_khoa::Tay_chan_mieng
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc chủ đề nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu thẻ đặc thù khác, vụn vặt, hoặc KHÔNG chắc chắn thuộc danh sách này, BẮT BUỘC trả về Tag mặc định: `AI::Nhi_khoa::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).
