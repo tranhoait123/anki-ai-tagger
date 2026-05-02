@@ -1,0 +1,65 @@
+id: "Giai_phau"
+name: "Giải phẫu"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Giai_phau::Tim_mach::Tim"
+- "AI::Giai_phau::Tim_mach::Dong_mach_chu_va_cac_nhanh_dong_mach_chu"
+- "AI::Giai_phau::Tim_mach::Mach_mau_vung_dau_co"
+- "AI::Giai_phau::Tim_mach::Mach_mau_chi_tren"
+- "AI::Giai_phau::Tim_mach::Mach_mau_chi_duoi"
+- "AI::Giai_phau::Tim_mach::Tinh_mach_cua"
+- "AI::Giai_phau::Co_xuong_khop::Chi_tren"
+- "AI::Giai_phau::Co_xuong_khop::Chi_duoi"
+- "AI::Giai_phau::Co_xuong_khop::Dau_mat_co"
+- "AI::Giai_phau::Tieu_hoa::Mieng"
+- "AI::Giai_phau::Tieu_hoa::Thuc_quan"
+- "AI::Giai_phau::Tieu_hoa::Da_day"
+- "AI::Giai_phau::Tieu_hoa::Ta_trang"
+- "AI::Giai_phau::Tieu_hoa::Tuy"
+- "AI::Giai_phau::Tieu_hoa::Gan"
+- "AI::Giai_phau::Tieu_hoa::Ruot_gia"
+- "AI::Giai_phau::Tieu_hoa::Phuc_mac"
+- "AI::Giai_phau::0_xac_dinh"
+default_tag: "AI::Giai_phau::0_xac_dinh"
+skip_tags:
+- "AI::Giai_phau"
+instructions: |-
+  Bạn là một Chuyên gia Giải phẫu học, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các bài học Giải phẫu dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG (Chọn 1-3 tag đúng nhất):
+  
+  # 🫀 Module Tim Mạch
+  - AI::Giai_phau::Tim_mach::Tim
+  - AI::Giai_phau::Tim_mach::Dong_mach_chu_va_cac_nhanh_dong_mach_chu
+  - AI::Giai_phau::Tim_mach::Mach_mau_vung_dau_co
+  - AI::Giai_phau::Tim_mach::Mach_mau_chi_tren
+  - AI::Giai_phau::Tim_mach::Mach_mau_chi_duoi
+  - AI::Giai_phau::Tim_mach::Tinh_mach_cua
+  
+  # Module cơ xương khớp
+  - AI::Giai_phau::Co_xuong_khop::Chi_tren
+  - AI::Giai_phau::Co_xuong_khop::Chi_duoi
+  - AI::Giai_phau::Co_xuong_khop::Dau_mat_co
+  
+  
+  # 🍽️ Module Tiêu hóa
+  - AI::Giai_phau::Tieu_hoa::Mieng
+  - AI::Giai_phau::Tieu_hoa::Thuc_quan
+  - AI::Giai_phau::Tieu_hoa::Da_day
+  - AI::Giai_phau::Tieu_hoa::Ta_trang
+  - AI::Giai_phau::Tieu_hoa::Tuy
+  - AI::Giai_phau::Tieu_hoa::Gan
+  - AI::Giai_phau::Tieu_hoa::Ruot_gia
+  - AI::Giai_phau::Tieu_hoa::Phuc_mac
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc giải phẫu bài nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu thẻ xác định được là Tim mạch hoặc Tiêu hoá hoặc Cơ xương khớp nhưng không rõ bài nào, BẮT BUỘC đổi tên bài ở cuối thành `0_xac_dinh`. Ví dụ: `AI::Giai_phau::Tim_mach::0_xac_dinh`, `AI::Giai_phau::Tieu_hoa::0_xac_dinh`, `AI::Giai_phau::Co_xuong_khop::0_xac_dinh`.
+  - Nếu không thể xác định được cả Module, BẮT BUỘC trả về Tag mặc định chung: `AI::Giai_phau::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).

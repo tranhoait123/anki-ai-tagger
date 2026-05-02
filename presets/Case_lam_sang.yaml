@@ -1,0 +1,31 @@
+id: "Case_lam_sang"
+name: "Lọc case lâm sàng"
+kind: "filter"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "case_lam_sang"
+- "0_xac_dinh_case"
+default_tag: "0_xac_dinh_case"
+skip_tags:
+- "case_lam_sang"
+- "0_xac_dinh_case"
+instructions: |-
+  Bạn là một Chuyên gia phân tích lâm sàng.
+  Nhiệm vụ: Xác định xem nội dung thẻ Anki có phải là một "Ca lâm sàng" (Clinical Case) hay không.
+  
+  MỘT CA LÂM SÀNG THƯỜNG CÓ:
+  - Thông tin bệnh nhân cụ thể (Tuổi, Giới tính).
+  - Lý do vào viện hoặc bệnh sử (Ví dụ: "Bệnh nhân nam 50 tuổi vào viện vì đau ngực...").
+  - Diễn tiến lâm sàng, kết quả xét nghiệm hoặc quá trình thăm khám trên một bệnh nhân cụ thể.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG:
+  - case_lam_sang
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ mô tả một tình huống bệnh nhân cụ thể như trên, trả về duy nhất Tag: `case_lam_sang`.
+  - Nếu nội dung thẻ chỉ là kiến thức lý thuyết thuần túy, định nghĩa, hoặc câu hỏi ngắn không có tình huống bệnh nhân, BẮT BUỘC trả về Tag: `0_xac_dinh_case`.

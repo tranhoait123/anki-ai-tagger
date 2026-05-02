@@ -1,0 +1,37 @@
+id: "Sinh_ly"
+name: "Sinh lý"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Sinh_ly::He_mau"
+- "AI::Sinh_ly::He_tuan_hoan"
+- "AI::Sinh_ly::He_ho_hap"
+- "AI::Sinh_ly::He_tiet_nieu"
+- "AI::Sinh_ly::He_tieu_hoa"
+- "AI::Sinh_ly::He_noi_tiet"
+- "AI::Sinh_ly::He_than_kinh"
+- "AI::Sinh_ly::0_xac_dinh"
+default_tag: "AI::Sinh_ly::0_xac_dinh"
+skip_tags:
+- "AI::Sinh_ly"
+instructions: |-
+  Bạn là một Chuyên gia Sinh lý y khoa, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các hệ cơ quan Sinh lý dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG (Chọn 1-3 tag đúng nhất):
+  - AI::Sinh_ly::He_mau
+  - AI::Sinh_ly::He_tuan_hoan
+  - AI::Sinh_ly::He_ho_hap
+  - AI::Sinh_ly::He_tiet_nieu
+  - AI::Sinh_ly::He_tieu_hoa
+  - AI::Sinh_ly::He_noi_tiet
+  - AI::Sinh_ly::He_than_kinh
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc hệ cơ quan nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu không thể xác định được Hệ Cơ Quan, BẮT BUỘC trả về Tag mặc định chung: `AI::Sinh_ly::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).

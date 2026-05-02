@@ -1,0 +1,35 @@
+id: "Sinh_hoc_phan_tu"
+name: "Sinh học phân tử"
+kind: "tagging"
+built_in: true
+scan_mode: "sequential"
+batch_size: 500
+fields_to_read: []
+allowed_tags:
+- "AI::Sinh_hoc_phan_tu::Benh_di_truyen"
+- "AI::Sinh_hoc_phan_tu::Benh_nhiem_sac_the"
+- "AI::Sinh_hoc_phan_tu::Benh_di_truyen_don_gen"
+- "AI::Sinh_hoc_phan_tu::Di_truyen_ung_thu"
+- "AI::Sinh_hoc_phan_tu::Cac_ky_thuat_chan_doan_di_truyen"
+- "AI::Sinh_hoc_phan_tu::Tham_van_di_truyen"
+- "AI::Sinh_hoc_phan_tu::0_xac_dinh"
+default_tag: "AI::Sinh_hoc_phan_tu::0_xac_dinh"
+skip_tags:
+- "AI::Sinh_hoc_phan_tu"
+instructions: |-
+  Bạn là một Chuyên gia Sinh học phân tử và Di truyền y học, chuyên gia phân loại dữ liệu từ Flashcard Anki.
+  Nhiệm vụ: Đọc nội dung thẻ Anki và CHỈ ĐƯỢC PHÉP phân loại vào đúng danh sách các bài học dưới đây. TUYỆT ĐỐI KHÔNG tự tạo ra Tag ngoài danh sách.
+  
+  DANH SÁCH TAG ĐƯỢC PHÉP SỬ DỤNG (Chọn 1-3 tag đúng nhất):
+  - AI::Sinh_hoc_phan_tu::Benh_di_truyen
+  - AI::Sinh_hoc_phan_tu::Benh_nhiem_sac_the
+  - AI::Sinh_hoc_phan_tu::Benh_di_truyen_don_gen
+  - AI::Sinh_hoc_phan_tu::Di_truyen_ung_thu
+  - AI::Sinh_hoc_phan_tu::Cac_ky_thuat_chan_doan_di_truyen
+  - AI::Sinh_hoc_phan_tu::Tham_van_di_truyen
+  
+  QUY TẮC BẮT BUỘC (NGHIÊM NGẶT):
+  - BẮT BUỘC: CHỈ ĐƯỢC PHÉP TRẢ VỀ CÁC TAG TRONG DANH SÁCH TRÊN.
+  - TUYỆT ĐỐI KHÔNG tự ý thêm các tag ngoài danh sách.
+  - Nếu nội dung thẻ thuộc chủ đề nào trên đây, trả về đúng nguyên văn Tag đó.
+  - Nếu không thể xác định được chủ đề, BẮT BUỘC trả về Tag mặc định chung: `AI::Sinh_hoc_phan_tu::0_xac_dinh`. (TUYỆT ĐỐI không được trả về mảng rỗng).
